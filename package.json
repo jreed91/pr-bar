@@ -9,6 +9,7 @@
     "validate": "claude plugin validate --strict . && claude plugin validate --strict .claude-plugin/plugin.json",
     "test": "claude plugin test .",
     "coverage": "node scripts/coverage.mjs",
+    "version-check": "node scripts/version.mjs origin/main",
     "check": "npm run lint && npm run types && npm run typecheck && npm run validate && npm test && npm run coverage"
   },
   "devDependencies": {
