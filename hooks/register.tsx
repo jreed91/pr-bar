@@ -414,6 +414,40 @@ export const register: Register = (on, options) => {
     engine.toast(`Attached ${item.label} to your next prompt`)
   }
 
+  /**
+   * Attaches `comments` (every unread one, oldest first) whole: one that would
+   * take the attachments past what a prompt carries is left out and counted.
+   */
+  async function attachAll(engine: Host, comments: readonly Comment[]): Promise<void> {
+    const pr = await currentPr()
+
+    if (!pr) {
+      return
+    }
+
+    let armed = view.armed
+    let added = 0
+    let left = 0
+
+    for (const comment of comments) {
+      const next = withArmed(armed, armComment(pr, comment))
+
+      if (next.reduce((sum, item) => sum + item.text.length, 0) > ARMED_MAX_CHARS) {
+        left += 1
+        continue
+      }
+
+      added += next.length - armed.length
+      armed = next
+    }
+
+    setView(engine, { armed })
+    engine.toast(
+      `Attached ${added} unread comment${added === 1 ? '' : 's'} to your next prompt` +
+        (left > 0 ? `; ${left} did not fit and ${left === 1 ? 'was' : 'were'} left out` : ''),
+    )
+  }
+
   on('session.start', async ($, e, next) => {
     host = {
       now: () => $.clock.now(),
@@ -570,6 +604,7 @@ export const register: Register = (on, options) => {
         loadLog: check => void logFor(engine, check),
         fixCi: check => void fixCi(engine, check),
         address: comment => void address(engine, comment),
+        attachUnread: comments => void attachAll(engine, comments),
         markRead: () => void markRead(engine),
         refresh: () => schedule(engine, 0),
         togglePassing: () => setView(engine, { showPassing: !view.showPassing }),
