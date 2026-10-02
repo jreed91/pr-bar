@@ -18,7 +18,7 @@ const paneOnCheck = async ($: Engine) => {
   return pane
 }
 
-describe('Fix CI', () => {
+describe('Attach to prompt on a check', () => {
   test('loads the log once, and attaches it with the check', async ($, on) => {
     const { clock, requests, toasts } = world(on, { http: github(() => logOf('2026-10-01T12:00:00Z boom')) })
     const submitted: (readonly string[] | undefined)[] = []
@@ -40,7 +40,7 @@ describe('Fix CI', () => {
     await pane.press({ key: 'fix-ci' })
     await clock.settle()
     await pane.redraw()
-    expect((await pane.find({ type: 'Button', key: 'fix-ci' }))?.text).toBe('Fix CI (attached)')
+    expect((await pane.find({ type: 'Button', key: 'fix-ci' }))?.text).toBe('Attached to next prompt')
     expect(requests.filter(url => url === LOG)).toHaveLength(1)
     expect(toasts).toEqual(['Attached CI / test to your next prompt'])
 
@@ -145,7 +145,7 @@ describe('attachments', () => {
       await clock.settle()
     }
     await pane.redraw()
-    expect((await pane.find({ type: 'Button', key: 'address' }))?.text).toBe('Address (attached)')
+    expect((await pane.find({ type: 'Button', key: 'address' }))?.text).toBe('Attached to next prompt')
     await pane.unmount()
   }
 
@@ -156,7 +156,8 @@ describe('attachments', () => {
     await addressBoth($, clock)
 
     const bar = await $.ui.mount(BAR)
-    expect((await bar.find({ type: 'Button', key: 'disarm-all' }))?.text).toBe('📎 2 ✕')
+    expect(await bar.find({ type: 'Text', text: '📎 2 for next prompt' })).toBeDefined()
+    expect((await bar.find({ type: 'Button', key: 'disarm-all' }))?.text).toBe('✕')
     await bar.press({ key: 'disarm-all' })
     await bar.redraw()
     expect(await bar.find({ type: 'Button', key: 'disarm-all' })).toBeUndefined()
@@ -242,5 +243,65 @@ describe('loading', () => {
     await clock.settle()
     await pane.redraw()
     expect((await pane.find({ type: 'Code' }))?.text).toBe('done')
+  })
+})
+
+describe('sending what is attached', () => {
+  const attachOne = async ($: Engine, clock: { settle: () => Promise<void> }) => {
+    const pane = await $.ui.mount(PANE)
+    // The unread comment is already open.
+    await pane.press({ key: 'address' })
+    await clock.settle()
+    await pane.unmount()
+  }
+
+  test('says in the transcript what went with the prompt', async ($, on) => {
+    const { clock, logs } = world(on)
+    on('prompt.submit', (_$, e) => ({ text: e.text, context: e.context }))
+    await $.session.start(START)
+    await clock.settle()
+    await attachOne($, clock)
+
+    await $.prompt.submit({ text: 'fix this', origin: { kind: 'composer' } } as never)
+    expect(logs).toEqual(['📎 Attached to this prompt: app.ts:3'])
+  })
+
+  test("a background task's or another session's prompt leaves them for the person's", async ($, on) => {
+    const { clock, logs } = world(on)
+    const submitted: (readonly string[] | undefined)[] = []
+    on('prompt.submit', (_$, e) => {
+      submitted.push(e.context)
+      return { text: e.text, context: e.context }
+    })
+    await $.session.start(START)
+    await clock.settle()
+    await attachOne($, clock)
+
+    await $.prompt.submit({ text: 'task done', origin: { kind: 'task-notification' } } as never)
+    await $.prompt.submit({ text: 'hello', origin: { kind: 'peer' } } as never)
+    expect(submitted.every(context => (context ?? []).length === 0)).toBe(true)
+    await $.prompt.submit({ text: 'fix this', origin: { kind: 'composer' } } as never)
+    expect(submitted[2]?.[0]).toContain('Rename this')
+    expect(logs).toHaveLength(1)
+  })
+
+  test('a prompt that did not enter keeps them for the next', async ($, on) => {
+    const { clock, logs } = world(on)
+    let refuse = true
+    const submitted: (readonly string[] | undefined)[] = []
+    on('prompt.submit', (_$, e) => {
+      submitted.push(e.context)
+      return refuse ? { drop: 'not now' } : { text: e.text, context: e.context }
+    })
+    await $.session.start(START)
+    await clock.settle()
+    await attachOne($, clock)
+
+    await $.prompt.submit({ text: 'fix this' } as never)
+    expect(logs).toEqual([])
+    refuse = false
+    await $.prompt.submit({ text: 'fix this' } as never)
+    expect(submitted[1]?.[0]).toContain('Rename this')
+    expect(logs).toHaveLength(1)
   })
 })

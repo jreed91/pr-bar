@@ -90,6 +90,7 @@ export function world(on: On, options: WorldOptions = {}) {
   const store = options.store ?? {}
   const requests: string[] = []
   const toasts: string[] = []
+  const logs: string[] = []
   const opened: string[] = []
   const closed: string[] = []
 
@@ -130,6 +131,10 @@ export function world(on: On, options: WorldOptions = {}) {
   on('session.start', (_$, e) => ({ cwd: e.cwd }) as never)
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
   on('ui.invalidate', () => ({ value: undefined }))
+  on('ui.log', (_$, e) => {
+    logs.push(e.text)
+    return { value: undefined }
+  })
   on('ui.toast', (_$, e) => {
     toasts.push(e.text)
     return { value: undefined }
@@ -154,7 +159,7 @@ export function world(on: On, options: WorldOptions = {}) {
     return { value: await state.http(e.url) }
   })
 
-  return { state, store, requests, toasts, opened, closed, clock, ran }
+  return { state, store, requests, toasts, opened, closed, clock, ran, logs }
 }
 
 export const START = { cwd: '/repo', surface: 'terminal', isInteractive: true } as never

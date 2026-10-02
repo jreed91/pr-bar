@@ -15,6 +15,8 @@ import { paneView } from './views/pane'
 
 /** The detail pane's id. */
 const PANE = 'pr-bar'
+/** Prompts that enter on their own, not sent by the person: they carry no attachments. */
+const NOT_THE_PERSON = new Set(['task-notification', 'scheduled-trigger', 'peer'])
 /** The largest description image fetched: what `Image` draws from bytes. */
 const IMAGE_MAX_BYTES = 2 * 1024 * 1024
 
@@ -44,7 +46,7 @@ const sameRepo = (a: RepoRef | null, b: RepoRef | null): boolean =>
  * The PR / CI bar: a bar above the prompt with the branch's PR, its CI
  * rollup and unread comments, polled from GitHub's GraphQL API through
  * `$.http`; `/pr` and the bar's Details toggle a pane listing checks and
- * comments, whose Fix CI and Address attach context to the next prompt.
+ * comments, whose Attach to prompt buttons add context to the next prompt.
  */
 export const register: Register = (on, options) => {
   let host: Host | null = null
@@ -467,8 +469,10 @@ export const register: Register = (on, options) => {
 
   on('prompt.submit', async ($, e, next) => {
     const armed = view.armed
+    // Only a prompt the person sent carries what they attached, not a background task's or another session's.
+    const origin: string | undefined = (e.origin as { kind: string } | undefined)?.kind
 
-    if (armed.length === 0 || !host) {
+    if (armed.length === 0 || !host || (origin !== undefined && NOT_THE_PERSON.has(origin))) {
       return next(e)
     }
 
@@ -481,7 +485,22 @@ export const register: Register = (on, options) => {
       $.ui.toast(`${dropped.length} attachment(s) did not fit the prompt and were dropped`)
     }
 
-    return next({ ...e, context: [...(e.context ?? []), ...blocks] })
+    const entered = await next({ ...e, context: [...(e.context ?? []), ...blocks] })
+
+    if (entered.drop !== undefined) {
+      // The prompt never entered: keep the attachments for the next one.
+      setView(host, { armed })
+
+      return entered
+    }
+
+    const sent = armed.filter(item => !dropped.includes(item))
+
+    if (sent.length > 0) {
+      $.ui.log(`📎 Attached to this prompt: ${sent.map(item => item.label).join(', ')}`)
+    }
+
+    return entered
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
