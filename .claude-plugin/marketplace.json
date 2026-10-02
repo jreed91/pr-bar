@@ -1,0 +1,27 @@
+{
+  "name": "jreed91",
+  "owner": {
+    "name": "jreed91"
+  },
+  "metadata": {
+    "description": "Claude Code mods by jreed91"
+  },
+  "plugins": [
+    {
+      "name": "pr-band",
+      "source": "./",
+      "description": "A band above the prompt with the current branch's GitHub PR, CI state and unread review comments, plus a /pr detail pane that hands failing checks and comments to Claude.",
+      "version": "0.3.1",
+      "author": {
+        "name": "jreed91"
+      },
+      "license": "MIT",
+      "keywords": [
+        "github",
+        "pull-request",
+        "ci",
+        "mod"
+      ]
+    }
+  ]
+}

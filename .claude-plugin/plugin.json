@@ -1,0 +1,54 @@
+{
+  "name": "pr-band",
+  "version": "0.3.1",
+  "description": "A band above the prompt with the current branch's GitHub PR, CI state and unread review comments, plus a /pr detail pane that hands failing checks and comments to Claude.",
+  "author": {
+    "name": "jreed91"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/jreed91/pr-bar",
+  "homepage": "https://github.com/jreed91/pr-bar#readme",
+  "keywords": [
+    "github",
+    "pull-request",
+    "ci",
+    "mod"
+  ],
+  "userConfig": {
+    "bandLayout": {
+      "type": "string",
+      "title": "Band layout",
+      "description": "compact: one line (PR, CI, new comments). full: two rows with the title, failing check names, attachments and buttons.",
+      "options": [
+        "compact",
+        "full"
+      ],
+      "default": "compact"
+    },
+    "showPassingChecks": {
+      "type": "boolean",
+      "title": "List passing checks",
+      "description": "List passing and skipped checks in the /pr pane instead of folding them into one line.",
+      "default": false
+    },
+    "showConversation": {
+      "type": "boolean",
+      "title": "Show conversation comments",
+      "description": "Show PR conversation comments and review summaries (bot reports, coverage, review overviews) in the /pr pane and the new-comment count. Inline review comments always show.",
+      "default": false
+    },
+    "openOnNewPr": {
+      "type": "boolean",
+      "title": "Open the pane for a new PR",
+      "description": "Open the /pr pane when a PR is opened for the current branch during the session (for example by gh pr create). Once per PR; the band shows either way.",
+      "default": true
+    },
+    "githubToken": {
+      "type": "string",
+      "title": "GitHub token",
+      "description": "Used only when GH_TOKEN, GITHUB_TOKEN and `gh auth token` all come up empty.",
+      "sensitive": true,
+      "required": false
+    }
+  }
+}

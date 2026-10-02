@@ -1,0 +1,28 @@
+{
+  "name": "pr-band",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "types": "node scripts/types.mjs",
+    "typecheck": "tsc -p .",
+    "validate": "claude plugin validate --strict . && claude plugin validate --strict .claude-plugin/plugin.json",
+    "test": "claude plugin test .",
+    "coverage": "node scripts/coverage.mjs",
+    "check": "npm run lint && npm run types && npm run typecheck && npm run validate && npm test && npm run coverage"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0",
+    "istanbul-lib-coverage": "^3.2.2",
+    "istanbul-lib-instrument": "^6.0.3",
+    "istanbul-lib-report": "^3.0.1",
+    "istanbul-reports": "^3.2.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

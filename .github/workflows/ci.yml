@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The plugin API is early access and can change between releases: bump on purpose.
+  CLAUDE_CODE_VERSION: 2.1.287
+
+jobs:
+  check:
+    name: Lint, type-check, validate, test, coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Claude Code
+        run: npm install --global "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Lay the plugin API types
+        run: npm run types
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Validate the plugin and marketplace
+        run: npm run validate
+
+      - name: Test
+        run: npm test
+
+      - name: Coverage (100% required)
+        run: npm run coverage
+
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
