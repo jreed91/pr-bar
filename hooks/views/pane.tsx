@@ -1,6 +1,7 @@
 import type { Elements } from 'claude-code'
 
 import type { Check, Comment, Problem, PullRequest, Selection, Snapshot } from '../../types'
+import { ageOf } from '../model/cadence'
 import { rollupOf } from '../model/rollup'
 import { HUNK_ROWS, hunkTailOf, printableTailOf } from '../model/hunk'
 import { bodyMarkdownOf, commentRowOf, fit } from '../model/preview'
@@ -69,7 +70,7 @@ export function problemTextOf(problem: Problem): string {
     case 'token-rejected':
       return 'GitHub rejected the token (401). It is asked again every 5 minutes.'
     case 'rate-limited':
-      return 'GitHub rate-limited the requests. It is asked again in 5 minutes.'
+      return `GitHub rate-limited the requests. It is asked again in ${ageOf(problem.waitMs)}.`
     case 'offline':
       return `Could not reach GitHub: ${problem.detail}. It is asked again in 5 minutes.`
   }

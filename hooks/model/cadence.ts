@@ -16,6 +16,20 @@ export function nextPollMs(last: 'pending' | 'settled' | 'failed'): number {
       : IDLE_POLL_MS
 }
 
+/** The longest a rate limit holds the poll off, whatever GitHub's reset says. */
+export const RATE_LIMIT_MAX_MS = 3_600_000
+
+/**
+ * The wait after a rate limit: until GitHub says the limit lifts (its
+ * `retry-after` or `x-ratelimit-reset`), a second past it, within 30s and
+ * an hour; the usual backoff when it does not say.
+ */
+export function rateLimitWaitMs(retryAfterMs: number | null): number {
+  return retryAfterMs === null
+    ? BACKOFF_MS
+    : Math.min(RATE_LIMIT_MAX_MS, Math.max(30_000, retryAfterMs + 1000))
+}
+
 /** Whether a Bash command can have changed the PR or the branch. */
 export function isPrMovingCommand(command: string): boolean {
   return /\bgit\s+(?:[^|;&]*\s)?(?:push|checkout|switch)\b|\bgh\s+pr\b/.test(command)

@@ -6,7 +6,7 @@ import { fetchJobLogTail, fetchPullRequest, messageOf } from './github/client'
 import { resolveToken } from './github/token'
 import type { Host, View } from './host'
 import { armCheck, armComment, ARMED_MAX_CHARS, contextOf, withArmed } from './model/armed'
-import { HEAD_POLL_MS, isPrMovingCommand, nextPollMs } from './model/cadence'
+import { HEAD_POLL_MS, isPrMovingCommand, nextPollMs, rateLimitWaitMs } from './model/cadence'
 import { hasTurnedRed, rollupOf, type Rollup } from './model/rollup'
 import { lastReadKey, openedKey } from './model/unread'
 import { bandView } from './views/band'
@@ -139,13 +139,20 @@ export const register: Register = (on, options) => {
         token = null
       }
 
+      const waitMs =
+        outcome.kind === 'rate-limited'
+          ? rateLimitWaitMs(outcome.retryAfterMs)
+          : nextPollMs('failed')
       const problem: View['problem'] =
-        outcome.kind === 'token-rejected' || outcome.kind === 'rate-limited'
-          ? { kind: outcome.kind }
-          : { kind: 'offline', detail: outcome.detail }
+        outcome.kind === 'rate-limited'
+          ? { kind: 'rate-limited', waitMs }
+          : outcome.kind === 'token-rejected'
+            ? { kind: 'token-rejected' }
+            : { kind: 'offline', detail: outcome.detail }
 
+      // The last answer stays on screen, marked stale, until GitHub answers again.
       setView(engine, { problem })
-      schedule(engine, nextPollMs('failed'))
+      schedule(engine, waitMs)
 
       return
     }
