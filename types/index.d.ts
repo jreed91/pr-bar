@@ -60,4 +60,5 @@ export type Problem =
 export type Armed = { id: string; label: string; text: string }
 
 /** The pane's selected item, by list key. */
-export type Selection = { kind: 'check' | 'comment'; id: string } | null
+/** The pane's open row: a pick, `none` once the person closed the open one, or null for the default. */
+export type Selection = { kind: 'check' | 'comment'; id: string } | { kind: 'none' } | null

@@ -14,6 +14,7 @@ import type {
 } from 'claude-code'
 
 import type { Armed, Problem, RepoRef, Selection, Snapshot } from '../types'
+import type { ExpandableList } from './views/pane'
 
 /** What the bar and pane draw from: module state, redrawn through `invalidate`. */
 export type View = {
@@ -27,6 +28,8 @@ export type View = {
   /** Session toggles, seeded from the plugin's settings. */
   showPassing: boolean
   showConversation: boolean
+  /** The pane's capped lists the person asked to see in full. */
+  expanded: readonly ExpandableList[]
 }
 
 /**

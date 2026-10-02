@@ -157,8 +157,7 @@ describe('hand-off', () => {
       props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 40 } },
     } as never)
 
-    await pane.press({ key: 'select:comment:RC1' })
-    await pane.redraw()
+    // The unread comment is already open.
     await pane.press({ key: 'address' })
 
     await $.prompt.submit({ text: 'fix this' } as never)
