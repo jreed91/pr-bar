@@ -64,7 +64,7 @@ export const register: Register = (on, options) => {
   let view: View = initialView(options)
   /** Whether the folder has been read for a github.com branch yet. */
   let hasLookedForRepo = false
-  const layout = options['barLayout'] === 'full' ? 'full' : 'compact'
+  const layout = String(options['barLayout']).trim().toLowerCase() === 'full' ? 'full' : 'compact'
 
   /** Changes what the bar and pane draw, and redraws them. */
   function setView(engine: Host, patch: Partial<View>): void {

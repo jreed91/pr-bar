@@ -18,11 +18,7 @@
     "barLayout": {
       "type": "string",
       "title": "Bar layout",
-      "description": "compact: one line (PR, CI, new comments). full: two rows with the title, failing check names, attachments and buttons.",
-      "options": [
-        "compact",
-        "full"
-      ],
+      "description": "compact or full. compact: one line (PR, CI, new comments). full: two rows with the title, failing check names, attachments and buttons. Anything else means compact.",
       "default": "compact"
     },
     "showPassingChecks": {
@@ -53,8 +49,7 @@
       "type": "string",
       "title": "GitHub token",
       "description": "Used only when GH_TOKEN, GITHUB_TOKEN and `gh auth token` all come up empty.",
-      "sensitive": true,
-      "required": false
+      "sensitive": true
     }
   }
 }
