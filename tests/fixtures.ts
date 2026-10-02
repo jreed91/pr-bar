@@ -37,5 +37,7 @@ export const prOf = (overrides: Partial<PullRequest> = {}): PullRequest => ({
   headSha: 'abcdef1234567',
   checks: [],
   comments: [],
+  body: '',
+  imageSrcs: [],
   ...overrides,
 })

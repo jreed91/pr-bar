@@ -41,7 +41,17 @@ export type PullRequest = {
   headSha: string
   checks: Check[]
   comments: Comment[]
+  /** The description as written (markdown). */
+  body: string
+  /** The description's image sources as GitHub renders them, in order. */
+  imageSrcs: string[]
 }
+
+/** A description image as fetched: drawn from its PNG bytes, or shown as a link. */
+export type DescriptionImage =
+  | { kind: 'loading' }
+  | { kind: 'png'; base64: string; width: number; height: number }
+  | { kind: 'link' }
 
 /** What the last poll came to. */
 export type Snapshot = {

@@ -14,6 +14,7 @@ export const hostOf = (overrides: Partial<Host> = {}): Host => ({
   exists: unused('exists'),
   stat: unused('stat'),
   readFile: unused('readFile'),
+  readBytes: unused('readBytes'),
   envGet: unused('envGet'),
   run: unused('run'),
   fetch: unused('fetch'),

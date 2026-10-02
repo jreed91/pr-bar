@@ -67,6 +67,10 @@ export type WorldOptions = {
   store?: Record<string, unknown>
   env?: Record<string, string>
   remote?: string | null
+  /** What a command the mod runs comes to; absent, the test expects none. */
+  run?: (argv: readonly string[]) => { exitCode: number; stdout?: string } | Promise<{ exitCode: number; stdout?: string }>
+  /** Files read as bytes, base64 by path; any other throws. */
+  bytes?: Record<string, string>
 }
 
 /**
@@ -100,7 +104,29 @@ export function world(on: On, options: WorldOptions = {}) {
   on('session.cwd', () => ({ value: '/repo' }))
   on('fs.exists', (_$, e) => ({ value: e.path === '/repo/.git' }))
   on('fs.stat', () => ({ value: { kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false } }))
-  on('fs.read', (_$, e) => ({ value: e.path === '/repo/.git/HEAD' ? state.head : '' }))
+  on('fs.read', (_$, e) => {
+    if (e.as === 'bytes') {
+      const base64 = options.bytes?.[e.path]
+
+      if (base64 === undefined) {
+        throw new Error(`no file ${e.path}`)
+      }
+
+      return { value: { base64 } }
+    }
+
+    return { value: e.path === '/repo/.git/HEAD' ? state.head : '' }
+  })
+  const ran: string[][] = []
+  const run = options.run
+
+  if (run) {
+    on('process.run', async (_$, e) => {
+      ran.push([...e.argv])
+      const result = await run(e.argv)
+      return { value: { stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false, ...result } }
+    })
+  }
   on('session.start', (_$, e) => ({ cwd: e.cwd }) as never)
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
   on('ui.invalidate', () => ({ value: undefined }))
@@ -128,7 +154,7 @@ export function world(on: On, options: WorldOptions = {}) {
     return { value: await state.http(e.url) }
   })
 
-  return { state, store, requests, toasts, opened, closed, clock }
+  return { state, store, requests, toasts, opened, closed, clock, ran }
 }
 
 export const START = { cwd: '/repo', surface: 'terminal', isInteractive: true } as never

@@ -1,10 +1,11 @@
 import type { PluginOptions, Register, Timer } from 'claude-code'
 
-import type { Check, Comment, PullRequest, RepoRef } from '../types'
+import type { Check, Comment, DescriptionImage, PullRequest, RepoRef } from '../types'
 import { locateCheckout, readRepoRef, type Checkout } from './git/locate'
 import { fetchJobLogTail, fetchPullRequest, messageOf } from './github/client'
 import { resolveToken } from './github/token'
 import type { Host, View } from './host'
+import { DESCRIPTION_IMAGES, descriptionPartsOf, pngSizeOf } from './model/description'
 import { armCheck, armComment, ARMED_MAX_CHARS, contextOf, withArmed } from './model/armed'
 import { HEAD_POLL_MS, isPrMovingCommand, nextPollMs, rateLimitWaitMs } from './model/cadence'
 import { hasTurnedRed, rollupOf, type Rollup } from './model/rollup'
@@ -14,6 +15,8 @@ import { paneView } from './views/pane'
 
 /** The detail pane's id. */
 const PANE = 'pr-bar'
+/** The largest description image fetched: what `Image` draws from bytes. */
+const IMAGE_MAX_BYTES = 2 * 1024 * 1024
 
 /** Everything the bar and pane draw from, the toggles seeded from the settings. */
 function initialView(options: PluginOptions): View {
@@ -29,6 +32,8 @@ function initialView(options: PluginOptions): View {
     selection: null,
     logs: {},
     expanded: [],
+    showDescription: false,
+    images: {},
   }
 }
 
@@ -176,6 +181,7 @@ export const register: Register = (on, options) => {
       problem: null,
       lastRead: typeof stored === 'number' ? stored : 0,
     })
+    void loadImages(engine)
 
     if (!pr) {
       previous = null
@@ -312,6 +318,76 @@ export const register: Register = (on, options) => {
     }
   }
 
+  /** A folder of this session's for fetched images, made on first use. */
+  let imageFolder: Promise<string> | null = null
+  let imageCount = 0
+
+  /** Fetches one description image to a file and reads it back: a PNG to draw, else a link. */
+  async function imageOf(engine: Host, src: string): Promise<DescriptionImage> {
+    const link: DescriptionImage = { kind: 'link' }
+
+    if (!src.startsWith('https://')) {
+      return link
+    }
+
+    try {
+      imageFolder ??= engine.run(['mktemp', '-d']).then(made => {
+        if (made.exitCode !== 0) {
+          throw new Error(made.stderr)
+        }
+
+        return made.stdout.trim()
+      })
+      const path = `${await imageFolder}/image-${imageCount++}.png`
+      // GitHub's rendered sources are signed for a few minutes and need no token.
+      const got = await engine.run(
+        ['curl', '-sSfL', '--max-time', '20', '--max-filesize', String(IMAGE_MAX_BYTES), '-o', path, src],
+        { timeoutMs: 30_000 },
+      )
+
+      if (got.exitCode !== 0) {
+        return link
+      }
+
+      const { base64 } = await engine.readBytes(path)
+      const size = pngSizeOf(base64)
+
+      return size ? { kind: 'png', base64, ...size } : link
+    } catch {
+      return link
+    }
+  }
+
+  /** Fetches the open description's first images, one at a time, each once a session. */
+  async function loadImages(engine: Host): Promise<void> {
+    const pr = view.snapshot?.pr
+
+    if (!pr || !view.showDescription) {
+      return
+    }
+
+    const images = descriptionPartsOf(pr.body).flatMap(part => (part.kind === 'image' ? [part] : []))
+    // GitHub's rendering is matched to the markdown by order, so only when they agree.
+    const isMatched = images.length === pr.imageSrcs.length
+
+    for (const [index, image] of images.slice(0, DESCRIPTION_IMAGES).entries()) {
+      const fetchSrc = isMatched ? pr.imageSrcs[index] : undefined
+
+      if (view.images[image.src]) {
+        continue
+      }
+
+      if (fetchSrc === undefined) {
+        setView(engine, { images: { ...view.images, [image.src]: { kind: 'link' } } })
+        continue
+      }
+
+      setView(engine, { images: { ...view.images, [image.src]: { kind: 'loading' } } })
+      const got = await imageOf(engine, fetchSrc)
+      setView(engine, { images: { ...view.images, [image.src]: got } })
+    }
+  }
+
   async function fixCi(engine: Host, check: Check): Promise<void> {
     const pr = await currentPr()
 
@@ -346,6 +422,7 @@ export const register: Register = (on, options) => {
       exists: path => $.fs.exists(path),
       stat: path => $.fs.stat(path),
       readFile: path => $.fs.read(path),
+      readBytes: path => $.fs.read(path, { as: 'bytes' }),
       envGet: name =>
         name === 'GH_TOKEN' ? $.env.get('GH_TOKEN') : $.env.get('GITHUB_TOKEN'),
       run: (argv, init) => $.process.run(argv, init),
@@ -465,6 +542,9 @@ export const register: Register = (on, options) => {
         showConversation: view.showConversation,
         showResolved: view.showResolved,
         expanded: view.expanded,
+        showDescription: view.showDescription,
+        canDrawImages: e.surface === 'terminal',
+        images: view.images,
       },
       {
         select: selection => setView(engine, { selection }),
@@ -477,6 +557,10 @@ export const register: Register = (on, options) => {
         toggleConversation: () =>
           setView(engine, { showConversation: !view.showConversation }),
         toggleResolved: () => setView(engine, { showResolved: !view.showResolved }),
+        toggleDescription: () => {
+          setView(engine, { showDescription: !view.showDescription })
+          void loadImages(engine)
+        },
         toggleMore: list =>
           setView(engine, {
             expanded: view.expanded.includes(list)

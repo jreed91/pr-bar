@@ -1,4 +1,5 @@
 import type { Check, Comment, PullRequest, RepoRef } from '../../types'
+import { imageSrcsOf } from '../model/description'
 
 /**
  * One GraphQL request for everything the bar and pane draw: the viewer,
@@ -10,7 +11,7 @@ export const PR_QUERY = `query PrBar($owner: String!, $name: String!, $branch: S
   repository(owner: $owner, name: $name) {
     pullRequests(headRefName: $branch, states: [OPEN], first: 1, orderBy: { field: UPDATED_AT, direction: DESC }) {
       nodes {
-        number title url isDraft reviewDecision mergeable baseRefName headRefName
+        number title url isDraft reviewDecision mergeable baseRefName headRefName body bodyHTML
         commits(last: 1) { nodes { commit { oid statusCheckRollup { contexts(first: 100) { nodes {
           __typename
           ... on CheckRun { id databaseId name status conclusion detailsUrl title
@@ -245,6 +246,8 @@ export function parseResponse(text: string): QueryOutcome {
       headSha: stringOf(commit['oid']) ?? '',
       checks: contexts.map(checkOf),
       comments: commentsOf(node),
+      body: stringOf(node['body']) ?? '',
+      imageSrcs: imageSrcsOf(stringOf(node['bodyHTML']) ?? ''),
     },
   }
 }

@@ -13,7 +13,7 @@ import type {
   UiPane,
 } from 'claude-code'
 
-import type { Armed, Problem, RepoRef, Selection, Snapshot } from '../types'
+import type { Armed, DescriptionImage, Problem, RepoRef, Selection, Snapshot } from '../types'
 import type { ExpandableList } from './views/pane'
 
 /** What the bar and pane draw from: module state, redrawn through `invalidate`. */
@@ -31,6 +31,9 @@ export type View = {
   showResolved: boolean
   /** The pane's capped lists the person asked to see in full. */
   expanded: readonly ExpandableList[]
+  showDescription: boolean
+  /** Description images fetched this session, by their source in the markdown. */
+  images: Record<string, DescriptionImage>
 }
 
 /**
@@ -47,6 +50,7 @@ export type Host = {
   exists: (path: string) => Promise<boolean>
   stat: (path: string) => Promise<FsStat>
   readFile: (path: string) => Promise<string>
+  readBytes: (path: string) => Promise<{ base64: string }>
   envGet: (name: 'GH_TOKEN' | 'GITHUB_TOKEN') => Promise<string | undefined>
   run: (argv: readonly string[], init?: ProcessRunInit) => Promise<ProcessRunResult>
   fetch: (url: string, init?: HttpInit) => Promise<HttpResponse>
