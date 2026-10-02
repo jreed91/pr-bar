@@ -1,6 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, test, type Engine } from 'claude-code/testing'
 
+import { GIF, PNG_800x400 as PNG } from './description.test'
 import { BAR, checkRun, inlineComment, json, NO_PR, PANE, prAnswer, START, world } from './world'
 
 const passing = (n: number) => checkRun({ id: `P${n}`, databaseId: 200 + n, name: `pass-${n}`, conclusion: 'SUCCESS' })
@@ -313,5 +314,131 @@ describe('resolved threads', () => {
     const bar = await drawn($, on, prAnswer(resolvedOnly), BAR)
 
     expect(await bar.find({ type: 'Text', text: /💬/ })).toBeUndefined()
+  })
+})
+
+describe('description', () => {
+  const asset = (n: number) => `https://github.com/user-attachments/assets/a${n}`
+  const signed = (n: number) => `https://private-user-images.githubusercontent.com/${n}.png?jwt=t`
+  const described = (count: number, html = count) => prAnswer({
+    body: ['Fixes the retry loop.', ...Array.from({ length: count }, (_, n) => `![shot ${n}](${asset(n)})`)].join('\n\n'),
+    bodyHTML: Array.from({ length: html }, (_, n) => `<img src="${signed(n)}" alt="shot ${n}">`).join(''),
+    ...noComments,
+  })
+  /** curl writes each signed source to its file; `files` says what each holds. */
+  const curl = (files: Record<string, string | null>) => (argv: readonly string[]) => {
+    if (argv[0] === 'mktemp') return { exitCode: 0, stdout: '/tmp/prbar\n' }
+    const holds = files[argv[argv.length - 1] as string]
+    return { exitCode: holds === null ? 22 : 0 }
+  }
+
+  test('is one folded row that opens to its text and images, fetched once', async ($, on) => {
+    const { clock, ran } = world(on, {
+      http: () => json(described(2)),
+      run: curl({ [signed(0)]: PNG, [signed(1)]: GIF }),
+      bytes: { '/tmp/prbar/image-0.png': PNG, '/tmp/prbar/image-1.png': GIF },
+    })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+
+    expect((await pane.find({ type: 'Button', key: 'toggle-description' }))?.text).toBe('Description')
+    expect(await pane.find({ type: 'Markdown' })).toBeUndefined()
+    expect(ran).toEqual([])
+
+    await pane.press({ key: 'toggle-description' })
+    await clock.settle()
+    await pane.redraw()
+    expect((await pane.find({ type: 'Button', key: 'toggle-description' }))?.text).toBe('hide description')
+    expect((await pane.find({ type: 'Markdown' }))?.props).toMatchObject({ text: 'Fixes the retry loop.' })
+    expect((await pane.find({ type: 'Image' }))?.props).toMatchObject({ source: { png: PNG }, alt: 'shot 0', columns: 75, rows: 19 })
+    // Not a PNG: a link to it instead.
+    expect((await pane.find({ type: 'Link', text: '[image: shot 1]' }))?.props).toMatchObject({ href: asset(1) })
+    expect(ran.map(argv => argv[0])).toEqual(['mktemp', 'curl', 'curl'])
+
+    // Folded and opened again, and polled again, nothing is fetched twice.
+    await pane.press({ key: 'toggle-description' })
+    await pane.press({ key: 'toggle-description' })
+    await clock.advance(90_000)
+    await clock.settle()
+    expect(ran).toHaveLength(3)
+  })
+
+  test('shows links while fetching, and when a fetch fails', async ($, on) => {
+    let release = () => {}
+    const waiting = new Promise<void>(resolve => (release = resolve))
+    const { clock } = world(on, {
+      http: () => json(described(3)),
+      run: async argv => {
+        if (argv[0] === 'mktemp') return { exitCode: 0, stdout: '/tmp/prbar' }
+        if (argv[argv.length - 1] === signed(0)) await waiting
+        return { exitCode: argv[argv.length - 1] === signed(1) ? 22 : 0 }
+      },
+      // image-2 is missing, so reading it throws.
+      bytes: { '/tmp/prbar/image-0.png': PNG },
+    })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+    await pane.press({ key: 'toggle-description' })
+    await pane.redraw()
+
+    expect(await pane.find({ type: 'Text', text: / loading…/ })).toBeDefined()
+    release()
+    await clock.settle()
+    await pane.redraw()
+    expect(await pane.find({ type: 'Text', text: / loading…/ })).toBeUndefined()
+    expect(await pane.findAll({ type: 'Image' })).toHaveLength(1)
+    expect(await pane.find({ type: 'Link', text: '[image: shot 1]' })).toBeDefined()
+    expect(await pane.find({ type: 'Link', text: '[image: shot 2]' })).toBeDefined()
+  })
+
+  test('links without fetching when the rendering does not line up, or past six images', async ($, on) => {
+    const { clock, ran } = world(on, { http: () => json(described(7, 6)), run: curl({}) })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+    await pane.press({ key: 'toggle-description' })
+    await clock.settle()
+    await pane.redraw()
+
+    expect(ran).toEqual([])
+    expect(await pane.findAll({ type: 'Link', text: /^\[image: shot/ })).toHaveLength(7)
+  })
+
+  test('links when no folder can be made, or the source is not https', async ($, on) => {
+    const answer = prAnswer({
+      body: '![](https://github.com/user-attachments/assets/a0) <img alt="plain" src="http://example.com/b.png">',
+      bodyHTML: `<img src="${signed(0)}"><img src="http://example.com/b.png">`,
+      ...noComments,
+    })
+    const { clock, ran } = world(on, { http: () => json(answer), run: () => ({ exitCode: 1 }) })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+    await pane.press({ key: 'toggle-description' })
+    await clock.settle()
+    await pane.redraw()
+
+    expect(ran.map(argv => argv[0])).toEqual(['mktemp'])
+    expect(await pane.find({ type: 'Link', text: '[image: image]' })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: '[image: plain]' })).toBeDefined()
+  })
+
+  test('outside the terminal an image is its link', async ($, on) => {
+    const { clock } = world(on, {
+      http: () => json(described(1)),
+      run: curl({ [signed(0)]: PNG }),
+      bytes: { '/tmp/prbar/image-0.png': PNG },
+    })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount({ ...(PANE as object), surface: 'desktop' } as never)
+    await pane.press({ key: 'toggle-description' })
+    await clock.settle()
+    await pane.redraw()
+
+    expect(await pane.find({ type: 'Image' })).toBeUndefined()
+    expect(await pane.find({ type: 'Link', text: '[image: shot 0]' })).toBeDefined()
   })
 })

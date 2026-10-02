@@ -1,7 +1,8 @@
 import type { Elements } from 'claude-code'
 
-import type { Check, Comment, Problem, PullRequest, Selection, Snapshot } from '../../types'
+import type { Check, Comment, DescriptionImage, Problem, PullRequest, Selection, Snapshot } from '../../types'
 import { ageOf } from '../model/cadence'
+import { descriptionPartsOf, imageBoxOf, type DescriptionPart } from '../model/description'
 import { rollupOf } from '../model/rollup'
 import { HUNK_ROWS, hunkTailOf, printableTailOf } from '../model/hunk'
 import { bodyMarkdownOf, commentRowOf, fit } from '../model/preview'
@@ -38,6 +39,12 @@ export type PaneModel = {
   showResolved: boolean
   /** The capped lists shown in full. */
   expanded: readonly ExpandableList[]
+  /** Show the PR description, not just the row that opens it. */
+  showDescription: boolean
+  /** Whether the surface draws pictures: the terminal (kitty, Ghostty; elsewhere their alt text). */
+  canDrawImages: boolean
+  /** The description's images fetched so far, by their source in the markdown. */
+  images: Readonly<Record<string, DescriptionImage>>
 }
 
 export type PaneActions = {
@@ -50,6 +57,7 @@ export type PaneActions = {
   togglePassing: () => void
   toggleConversation: () => void
   toggleResolved: () => void
+  toggleDescription: () => void
   /** Shows a capped list in full, or caps it again. */
   toggleMore: (list: ExpandableList) => void
 }
@@ -58,6 +66,8 @@ type Table = Pick<
   Elements['terminal'],
   'Box' | 'Text' | 'Button' | 'Link' | 'Code' | 'Markdown'
 >
+/** `Image` is the terminal's alone: elsewhere an image is its link. */
+type WithImage = Table & { Image?: Elements['terminal']['Image'] }
 
 const ICON: Record<Check['state'], { glyph: string; color: string }> = {
   fail: { glyph: '✗', color: 'error' },
@@ -123,7 +133,7 @@ export function effectiveSelection(
 }
 
 export function paneView(
-  { Box, Text, Button, Link, Code, Markdown }: Table,
+  { Box, Text, Button, Link, Code, Markdown, Image }: WithImage,
   model: PaneModel,
   actions: PaneActions,
 ): JSX.Element {
@@ -182,6 +192,7 @@ export function paneView(
   ]
   const conversation = comments.filter(row => row.comment.kind !== 'review-comment')
   const rowWidth = Math.max(20, model.columns - MARKER_COLUMNS - 1)
+  const description = descriptionPartsOf(pr.body)
 
   const selectedCheck =
     selection?.kind === 'check'
@@ -266,6 +277,28 @@ export function paneView(
           <Button key="refresh" hotkey="r" plain dimColor label="refresh" onPress={actions.refresh} />
         </Box>
       </Box>
+
+      {description.length > 0 && (
+        <Box marginTop={1} flexDirection="column">
+          <Box>
+            <Box width={MARKER_COLUMNS} flexShrink={0}>
+              <Text dimColor>  {model.showDescription ? '▾' : '▸'}</Text>
+            </Box>
+            <Button
+              key="toggle-description"
+              plain
+              dimColor
+              label={model.showDescription ? 'hide description' : 'Description'}
+              onPress={actions.toggleDescription}
+            />
+          </Box>
+          {model.showDescription &&
+            openedRow(
+              Box,
+              descriptionView({ Box, Text, Link, Markdown, Image: model.canDrawImages ? Image : undefined }, description, model.images, rowWidth),
+            )}
+        </Box>
+      )}
 
       {commentList(
         { Box, Text, Button },
@@ -532,6 +565,45 @@ function hunkCode(Code: Table['Code'], diffHunk: string): JSX.Element {
 }
 
 /** A selected row's detail, indented under the row and set off below it. */
+/** The description in order: its text as markdown, each image drawn where it was fetched, else a link to it. */
+function descriptionView(
+  { Box, Text, Link, Markdown, Image }: Pick<WithImage, 'Box' | 'Text' | 'Link' | 'Markdown' | 'Image'>,
+  parts: readonly DescriptionPart[],
+  images: Readonly<Record<string, DescriptionImage>>,
+  width: number,
+): JSX.Element {
+  return (
+    <Box flexDirection="column">
+      {parts.map((part, index) => {
+        if (part.kind === 'text') {
+          return <Markdown key={`description:${index}`} text={part.markdown} />
+        }
+
+        const image = images[part.src]
+        const alt = part.alt.trim() || 'image'
+
+        return Image && image?.kind === 'png' ? (
+          <Image
+            key={`description:${index}`}
+            source={{ png: image.base64 }}
+            {...imageBoxOf(image, width)}
+            alt={alt}
+          />
+        ) : (
+          <Box key={`description:${index}`}>
+            {/^https:\/\//.test(part.src) ? (
+              <Link href={part.src} label={`[image: ${alt}]`} />
+            ) : (
+              <Text dimColor>[image: {alt}]</Text>
+            )}
+            {image?.kind === 'loading' && <Text dimColor> loading…</Text>}
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
+
 function openedRow(Box: Table['Box'], detail: JSX.Element): JSX.Element {
   return (
     <Box marginLeft={MARKER_COLUMNS} marginBottom={1} flexDirection="column">
