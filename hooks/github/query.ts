@@ -1,11 +1,11 @@
 import type { Check, Comment, PullRequest, RepoRef } from '../../types'
 
 /**
- * One GraphQL request for everything the band and pane draw: the viewer,
+ * One GraphQL request for everything the bar and pane draw: the viewer,
  * the branch's newest open PR, its head commit's check rollup, and the three
  * kinds of comment.
  */
-export const PR_QUERY = `query PrBand($owner: String!, $name: String!, $branch: String!) {
+export const PR_QUERY = `query PrBar($owner: String!, $name: String!, $branch: String!) {
   viewer { login }
   repository(owner: $owner, name: $name) {
     pullRequests(headRefName: $branch, states: [OPEN], first: 1, orderBy: { field: UPDATED_AT, direction: DESC }) {
@@ -183,7 +183,7 @@ export type QueryOutcome =
   | { kind: 'rate-limited' }
   | { kind: 'error'; detail: string }
 
-/** Reads a GraphQL response body into the PR the band draws. */
+/** Reads a GraphQL response body into the PR the bar draws. */
 export function parseResponse(text: string): QueryOutcome {
   let json: Json
 

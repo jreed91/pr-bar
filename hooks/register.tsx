@@ -9,13 +9,13 @@ import { armCheck, armComment, ARMED_MAX_CHARS, contextOf, withArmed } from './m
 import { HEAD_POLL_MS, isPrMovingCommand, nextPollMs, rateLimitWaitMs } from './model/cadence'
 import { hasTurnedRed, rollupOf, type Rollup } from './model/rollup'
 import { lastReadKey, openedKey } from './model/unread'
-import { bandView } from './views/band'
+import { barView } from './views/bar'
 import { paneView } from './views/pane'
 
 /** The detail pane's id. */
-const PANE = 'pr-band'
+const PANE = 'pr-bar'
 
-/** Everything the band and pane draw from, the toggles seeded from the settings. */
+/** Everything the bar and pane draw from, the toggles seeded from the settings. */
 function initialView(options: PluginOptions): View {
   return {
     showPassing: options['showPassingChecks'] === true,
@@ -34,9 +34,9 @@ const sameRepo = (a: RepoRef | null, b: RepoRef | null): boolean =>
   a?.owner === b?.owner && a?.name === b?.name && a?.branch === b?.branch
 
 /**
- * The PR / CI band: a band above the prompt with the branch's PR, its CI
+ * The PR / CI bar: a bar above the prompt with the branch's PR, its CI
  * rollup and unread comments, polled from GitHub's GraphQL API through
- * `$.http`; `/pr` and the band's Details toggle a pane listing checks and
+ * `$.http`; `/pr` and the bar's Details toggle a pane listing checks and
  * comments, whose Fix CI and Address attach context to the next prompt.
  */
 export const register: Register = (on, options) => {
@@ -55,9 +55,9 @@ export const register: Register = (on, options) => {
   let view: View = initialView(options)
   /** Whether the folder has been read for a github.com branch yet. */
   let hasLookedForRepo = false
-  const layout = options['bandLayout'] === 'full' ? 'full' : 'compact'
+  const layout = options['barLayout'] === 'full' ? 'full' : 'compact'
 
-  /** Changes what the band and pane draw, and redraws them. */
+  /** Changes what the bar and pane draw, and redraws them. */
   function setView(engine: Host, patch: Partial<View>): void {
     view = { ...view, ...patch }
     engine.invalidate()
@@ -370,7 +370,7 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'pr' }, async () => {
     if (!host) {
-      return { text: 'pr-band has not started yet' }
+      return { text: 'PrBar has not started yet' }
     }
 
     return { text: (await togglePane(host)) ? 'PR pane opened' : 'PR pane closed' }
@@ -413,7 +413,7 @@ export const register: Register = (on, options) => {
       return next(e)
     }
 
-    const tree = bandView(
+    const tree = barView(
       $.ui.resolve(e),
       {
         repo,

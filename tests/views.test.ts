@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, test, type Engine } from 'claude-code/testing'
 
-import { BAND, checkRun, inlineComment, json, NO_PR, PANE, prAnswer, START, world } from './world'
+import { BAR, checkRun, inlineComment, json, NO_PR, PANE, prAnswer, START, world } from './world'
 
 const passing = (n: number) => checkRun({ id: `P${n}`, databaseId: 200 + n, name: `pass-${n}`, conclusion: 'SUCCESS' })
 const failing = (n: number) => checkRun({ id: `F${n}`, databaseId: 300 + n, name: `fail-${String(n).padStart(2, '0')}` })
@@ -16,9 +16,9 @@ async function drawn($: Engine, on: On, answer: unknown, target: never) {
   return $.ui.mount(target)
 }
 
-describe('compact band', () => {
+describe('compact bar', () => {
   test('running checks, a conflict, no review', async ($, on) => {
-    const ui = await drawn($, on, prAnswer({ mergeable: 'CONFLICTING' }, [running, passing(1)]), BAND)
+    const ui = await drawn($, on, prAnswer({ mergeable: 'CONFLICTING' }, [running, passing(1)]), BAR)
 
     expect(await ui.find({ type: 'Text', text: '◌ 1 running' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '⚠ conflict' })).toBeDefined()
@@ -26,25 +26,25 @@ describe('compact band', () => {
   })
 
   test('all green and approved', async ($, on) => {
-    const ui = await drawn($, on, prAnswer({ reviewDecision: 'APPROVED' }, [passing(1)]), BAND)
+    const ui = await drawn($, on, prAnswer({ reviewDecision: 'APPROVED' }, [passing(1)]), BAR)
 
     expect(await ui.find({ type: 'Text', text: '✓ CI' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '✓ approved' })).toBeDefined()
   })
 
-  test('a survey above the prompt keeps the band out of its way', async ($, on) => {
+  test('a survey above the prompt keeps the bar out of its way', async ($, on) => {
     const { clock } = world(on)
     await $.session.start(START)
     await clock.settle()
-    const ui = await $.ui.mount({ ...(BAND as object), props: { ...(BAND as { props: object }).props, hasSurvey: true } } as never)
+    const ui = await $.ui.mount({ ...(BAR as object), props: { ...(BAR as { props: object }).props, hasSurvey: true } } as never)
 
     expect(await ui.find({ type: 'Text', text: 'drawn by the engine' })).toBeDefined()
   })
 })
 
-describe('full band', () => {
-  test('a draft with a conflict, running checks and no failures', { options: { bandLayout: 'full' } }, async ($, on) => {
-    const ui = await drawn($, on, prAnswer({ isDraft: true, mergeable: 'CONFLICTING', reviewDecision: 'REVIEW_REQUIRED' }, [running]), BAND)
+describe('full bar', () => {
+  test('a draft with a conflict, running checks and no failures', { options: { barLayout: 'full' } }, async ($, on) => {
+    const ui = await drawn($, on, prAnswer({ isDraft: true, mergeable: 'CONFLICTING', reviewDecision: 'REVIEW_REQUIRED' }, [running]), BAR)
 
     expect(await ui.find({ type: 'Text', text: /· draft/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /· ⚠ conflict/ })).toBeDefined()
@@ -53,23 +53,23 @@ describe('full band', () => {
     expect(await ui.find({ type: 'Text', text: '✗ 0' })).toBeDefined()
   })
 
-  test('no checks yet', { options: { bandLayout: 'full' } }, async ($, on) => {
-    const ui = await drawn($, on, prAnswer({}, []), BAND)
+  test('no checks yet', { options: { barLayout: 'full' } }, async ($, on) => {
+    const ui = await drawn($, on, prAnswer({}, []), BAR)
 
     expect(await ui.find({ type: 'Text', text: 'CI: no checks' })).toBeDefined()
   })
 
-  test('names three failing checks and counts the rest', { options: { bandLayout: 'full' } }, async ($, on) => {
-    const ui = await drawn($, on, prAnswer({}, [1, 2, 3, 4, 5].map(failing)), BAND)
+  test('names three failing checks and counts the rest', { options: { barLayout: 'full' } }, async ($, on) => {
+    const ui = await drawn($, on, prAnswer({}, [1, 2, 3, 4, 5].map(failing)), BAR)
 
     expect(await ui.find({ type: 'Text', text: 'CI / fail-01, CI / fail-02, CI / fail-03 +2' })).toBeDefined()
   })
 
-  test('Refresh asks GitHub again', { options: { bandLayout: 'full' } }, async ($, on) => {
+  test('Refresh asks GitHub again', { options: { barLayout: 'full' } }, async ($, on) => {
     const { clock, requests } = world(on)
     await $.session.start(START)
     await clock.settle()
-    const ui = await $.ui.mount(BAND)
+    const ui = await $.ui.mount(BAR)
 
     await ui.press({ key: 'refresh' })
     await clock.advance(0)
@@ -81,13 +81,13 @@ describe('pane', () => {
   test('a branch with no PR', async ($, on) => {
     const pane = await drawn($, on, NO_PR, PANE)
 
-    expect(await pane.find({ type: 'Text', text: 'No open PR for feat/band in o/r.' })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: 'No open PR for feat/bar in o/r.' })).toBeDefined()
   })
 
   test('nothing failing and nothing unread: nothing selected, nothing listed', async ($, on) => {
     const pane = await drawn($, on, prAnswer({ isDraft: true, mergeable: 'CONFLICTING', ...noComments }, []), PANE)
 
-    expect(await pane.find({ type: 'Text', text: /main ← feat\/band · draft · conflict/ })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: /main ← feat\/bar · draft · conflict/ })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: /none reported/ })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: /^ *none$/ })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: /Nothing failing and nothing unread/ })).toBeDefined()

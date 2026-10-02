@@ -19,7 +19,7 @@ describe('githubRepoOf', () => {
 
 describe('HEAD', () => {
   test('names the branch, or null when detached', async () => {
-    expect(branchOfHead('ref: refs/heads/feat/band\n')).toBe('feat/band')
+    expect(branchOfHead('ref: refs/heads/feat/bar\n')).toBe('feat/bar')
     expect(branchOfHead('3f2a9c0d1e\n')).toBeNull()
   })
 

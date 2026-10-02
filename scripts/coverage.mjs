@@ -24,7 +24,7 @@ import libReport from 'istanbul-lib-report'
 import reports from 'istanbul-reports'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const MARK = '@@pr-band-coverage@@'
+const MARK = '@@pr-bar-coverage@@'
 const END = '@@end@@'
 const THRESHOLD = 100
 const METRICS = ['statements', 'branches', 'functions', 'lines']
@@ -133,7 +133,7 @@ function main() {
     return 1
   }
 
-  const work = mkdtempSync(join(tmpdir(), 'pr-band-coverage-'))
+  const work = mkdtempSync(join(tmpdir(), 'pr-bar-coverage-'))
   try {
     const shapes = prepare(work, sources)
     const coverage = libCoverage.createCoverageMap({})

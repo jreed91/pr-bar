@@ -1,6 +1,6 @@
 import { describe, expect, test, type Engine } from 'claude-code/testing'
 
-import { BAND, checkRun, inlineComment, json, NO_PR, PANE, prAnswer, START, world } from './world'
+import { BAR, checkRun, inlineComment, json, NO_PR, PANE, prAnswer, START, world } from './world'
 
 const LOG = 'https://api.github.com/repos/o/r/actions/jobs/99/logs'
 
@@ -149,32 +149,32 @@ describe('attachments', () => {
     await pane.unmount()
   }
 
-  test('the compact band counts them and lets them all go', async ($, on) => {
+  test('the compact bar counts them and lets them all go', async ($, on) => {
     const { clock } = world(on, { http: () => json(twoComments) })
     await $.session.start(START)
     await clock.settle()
     await addressBoth($, clock)
 
-    const band = await $.ui.mount(BAND)
-    expect((await band.find({ type: 'Button', key: 'disarm-all' }))?.text).toBe('📎 2 ✕')
-    await band.press({ key: 'disarm-all' })
-    await band.redraw()
-    expect(await band.find({ type: 'Button', key: 'disarm-all' })).toBeUndefined()
+    const bar = await $.ui.mount(BAR)
+    expect((await bar.find({ type: 'Button', key: 'disarm-all' }))?.text).toBe('📎 2 ✕')
+    await bar.press({ key: 'disarm-all' })
+    await bar.redraw()
+    expect(await bar.find({ type: 'Button', key: 'disarm-all' })).toBeUndefined()
   })
 
-  test('the full band names each and lets one go', { options: { bandLayout: 'full' } }, async ($, on) => {
+  test('the full bar names each and lets one go', { options: { barLayout: 'full' } }, async ($, on) => {
     const { clock } = world(on, { http: () => json(twoComments) })
     await $.session.start(START)
     await clock.settle()
     await addressBoth($, clock)
 
-    const band = await $.ui.mount(BAND)
-    expect((await band.find({ type: 'Button', key: 'disarm:comment:RC1' }))?.text).toBe('📎 app.ts:3 ✕')
-    expect((await band.find({ type: 'Button', key: 'disarm:comment:RC2' }))?.text).toBe('📎 @bob ✕')
-    await band.press({ key: 'disarm:comment:RC1' })
-    await band.redraw()
-    expect(await band.find({ type: 'Button', key: 'disarm:comment:RC1' })).toBeUndefined()
-    expect(await band.find({ type: 'Button', key: 'disarm:comment:RC2' })).toBeDefined()
+    const bar = await $.ui.mount(BAR)
+    expect((await bar.find({ type: 'Button', key: 'disarm:comment:RC1' }))?.text).toBe('📎 app.ts:3 ✕')
+    expect((await bar.find({ type: 'Button', key: 'disarm:comment:RC2' }))?.text).toBe('📎 @bob ✕')
+    await bar.press({ key: 'disarm:comment:RC1' })
+    await bar.redraw()
+    expect(await bar.find({ type: 'Button', key: 'disarm:comment:RC1' })).toBeUndefined()
+    expect(await bar.find({ type: 'Button', key: 'disarm:comment:RC2' })).toBeDefined()
   })
 })
 

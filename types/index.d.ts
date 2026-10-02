@@ -1,7 +1,7 @@
 /** A GitHub repository and the branch checked out in it. */
 export type RepoRef = { owner: string; name: string; branch: string }
 
-/** One CI check, folded to the four states the band draws. */
+/** One CI check, folded to the four states the bar draws. */
 export type Check = {
   id: string
   name: string
@@ -49,7 +49,7 @@ export type Snapshot = {
   fetchedAt: number
 }
 
-/** Why the band is not showing fresh data. */
+/** Why the bar is not showing fresh data. */
 export type Problem =
   | { kind: 'no-token' }
   | { kind: 'token-rejected' }

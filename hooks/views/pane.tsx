@@ -118,7 +118,7 @@ export function paneView(
   if (!model.hasRepo) {
     return (
       <Text dimColor>
-        No GitHub branch here. pr-band needs a folder in a checkout whose origin is on github.com,
+        No GitHub branch here. PrBar needs a folder in a checkout whose origin is on github.com,
         on a branch rather than a detached HEAD.
       </Text>
     )

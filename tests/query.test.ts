@@ -13,13 +13,13 @@ const response = (pr: unknown) =>
 
 const PR_NODE = {
   number: 7,
-  title: 'Add the band',
+  title: 'Add the bar',
   url: 'https://github.com/o/r/pull/7',
   isDraft: true,
   reviewDecision: 'CHANGES_REQUESTED',
   mergeable: 'CONFLICTING',
   baseRefName: 'main',
-  headRefName: 'feat/band',
+  headRefName: 'feat/bar',
   commits: { nodes: [{ commit: { oid: 'abc123', statusCheckRollup: { contexts: { nodes: [
     { __typename: 'CheckRun', id: 'CR1', databaseId: 99, name: 'test', status: 'COMPLETED', conclusion: 'FAILURE', detailsUrl: 'https://x', title: '2 tests failed', checkSuite: { app: { slug: 'github-actions' }, workflowRun: { workflow: { name: 'CI' } } } },
     { __typename: 'CheckRun', id: 'CR2', databaseId: 100, name: 'lint', status: 'IN_PROGRESS', conclusion: null, detailsUrl: null, title: null, checkSuite: { app: { slug: 'github-actions' }, workflowRun: { workflow: { name: 'CI' } } } },

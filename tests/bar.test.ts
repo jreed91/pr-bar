@@ -8,13 +8,13 @@ const graphql = (overrides: Record<string, unknown> = {}) => ({
     viewer: { login: 'jreed91' },
     repository: { pullRequests: { nodes: [{
       number: 7,
-      title: 'Add the band',
+      title: 'Add the bar',
       url: 'https://github.com/o/r/pull/7',
       isDraft: false,
       reviewDecision: 'CHANGES_REQUESTED',
       mergeable: 'MERGEABLE',
       baseRefName: 'main',
-      headRefName: 'feat/band',
+      headRefName: 'feat/bar',
       commits: { nodes: [{ commit: { oid: 'abc123', statusCheckRollup: { contexts: { nodes: [
         { __typename: 'CheckRun', id: 'CR1', databaseId: 99, name: 'test', status: 'COMPLETED', conclusion: 'FAILURE', detailsUrl: 'https://github.com/o/r/actions/runs/1/job/99', title: null, checkSuite: { app: { slug: 'github-actions' }, workflowRun: { workflow: { name: 'CI' } } } },
         { __typename: 'CheckRun', id: 'CR2', databaseId: 100, name: 'lint', status: 'COMPLETED', conclusion: 'SUCCESS', detailsUrl: null, title: null, checkSuite: { app: { slug: 'github-actions' }, workflowRun: { workflow: { name: 'CI' } } } },
@@ -29,7 +29,7 @@ const graphql = (overrides: Record<string, unknown> = {}) => ({
   },
 })
 
-/** A checkout of o/r on feat/band, a token in the env, GitHub answering `body`. */
+/** A checkout of o/r on feat/bar, a token in the env, GitHub answering `body`. */
 function world(on: On, body: unknown, store: Record<string, unknown> = {}, env: Record<string, string> = { GH_TOKEN: 'test-token' }, remote = 'git@github.com:o/r.git') {
   const clock = mock.clock(on, { now: NOW })
   on('store.get', (_$, e) => ({ value: store[e.key] }))
@@ -42,7 +42,7 @@ function world(on: On, body: unknown, store: Record<string, unknown> = {}, env: 
   on('session.cwd', () => ({ value: '/repo' }))
   on('fs.exists', (_$, e) => ({ value: e.path === '/repo/.git' }))
   on('fs.stat', () => ({ value: { kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false } }))
-  on('fs.read', (_$, e) => ({ value: e.path === '/repo/.git/HEAD' ? 'ref: refs/heads/feat/band\n' : '' }))
+  on('fs.read', (_$, e) => ({ value: e.path === '/repo/.git/HEAD' ? 'ref: refs/heads/feat/bar\n' : '' }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }) as never)
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
   on('ui.invalidate', () => ({ value: undefined }))
@@ -70,9 +70,9 @@ function world(on: On, body: unknown, store: Record<string, unknown> = {}, env: 
   return { requests, clock, toasts, answer, opened }
 }
 
-const BAND = { component: 'AbovePrompt' as const, props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 } } }
+const BAR = { component: 'AbovePrompt' as const, props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 } } }
 
-describe('band', () => {
+describe('bar', () => {
   test('compact by default: one line with the PR, red CI, review and unread count', async ($, on) => {
     const { requests, clock } = world(on, graphql())
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
@@ -81,7 +81,7 @@ describe('band', () => {
     expect(requests).toEqual(['https://api.github.com/graphql'])
 
     for (const surface of ['terminal', 'desktop'] as const) {
-      const ui = await $.ui.mount({ plugin: 'pr-band', surface, ...BAND } as never)
+      const ui = await $.ui.mount({ plugin: 'pr-bar', surface, ...BAR } as never)
 
       expect(await ui.find({ type: 'Link', text: '#7' })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: '✗ 1 failing' })).toBeDefined()
@@ -95,16 +95,16 @@ describe('band', () => {
     }
   })
 
-  test('full layout: title, failing check names and buttons', { options: { bandLayout: 'full' } }, async ($, on) => {
+  test('full layout: title, failing check names and buttons', { options: { barLayout: 'full' } }, async ($, on) => {
     const { clock } = world(on, graphql())
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
     await clock.settle()
 
     for (const surface of ['terminal', 'desktop'] as const) {
-      const ui = await $.ui.mount({ plugin: 'pr-band', surface, ...BAND } as never)
+      const ui = await $.ui.mount({ plugin: 'pr-bar', surface, ...BAR } as never)
 
       expect(await ui.find({ type: 'Link', text: '#7' })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: /Add the band/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /Add the bar/ })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: /changes requested/ })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: /CI \/ test/ })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: '💬 1 new' })).toBeDefined()
@@ -113,12 +113,12 @@ describe('band', () => {
     }
   })
 
-  test('Mark read clears the count and is kept per PR', { options: { bandLayout: 'full' } }, async ($, on) => {
+  test('Mark read clears the count and is kept per PR', { options: { barLayout: 'full' } }, async ($, on) => {
     const store: Record<string, unknown> = {}
     const { clock } = world(on, graphql(), store)
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
     await clock.settle()
-    const ui = await $.ui.mount({ plugin: 'pr-band', surface: 'terminal', ...BAND } as never)
+    const ui = await $.ui.mount({ plugin: 'pr-bar', surface: 'terminal', ...BAR } as never)
 
     await ui.press({ key: 'mark-read' })
     await ui.redraw()
@@ -131,9 +131,9 @@ describe('band', () => {
     const { clock } = world(on, { data: { viewer: { login: 'jreed91' }, repository: { pullRequests: { nodes: [] } } } })
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
     await clock.settle()
-    const ui = await $.ui.mount({ plugin: 'pr-band', surface: 'terminal', ...BAND } as never)
+    const ui = await $.ui.mount({ plugin: 'pr-bar', surface: 'terminal', ...BAR } as never)
 
-    expect(await ui.find({ type: 'Text', text: /no PR for feat\/band/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /no PR for feat\/bar/ })).toBeDefined()
     expect(await ui.find({ type: 'Link', text: 'Open compare' })).toBeDefined()
   })
 })
@@ -150,10 +150,10 @@ describe('hand-off', () => {
     await clock.settle()
 
     const pane = await $.ui.mount({
-      plugin: 'pr-band',
+      plugin: 'pr-bar',
       surface: 'terminal',
       component: 'Pane',
-      requestId: 'pr-band',
+      requestId: 'pr-bar',
       props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 40 } },
     } as never)
 
@@ -199,7 +199,7 @@ describe('alerts', () => {
     on('process.run', () => ({ value: { exitCode: 1, stdout: '', stderr: 'not logged in', isStdoutTruncated: false, isStderrTruncated: false } }))
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
     await clock.settle()
-    const ui = await $.ui.mount({ plugin: 'pr-band', surface: 'terminal', ...BAND } as never)
+    const ui = await $.ui.mount({ plugin: 'pr-bar', surface: 'terminal', ...BAR } as never)
 
     expect(await ui.find({ type: 'Text', text: /no GitHub token/ })).toBeDefined()
   })
@@ -224,10 +224,10 @@ describe('pane comments', () => {
     await clock.settle()
 
     const pane = await $.ui.mount({
-      plugin: 'pr-band',
+      plugin: 'pr-bar',
       surface: 'terminal',
       component: 'Pane',
-      requestId: 'pr-band',
+      requestId: 'pr-bar',
       props: { title: 'Pull request', isFocused: true, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 40 } },
     } as never)
 
@@ -262,10 +262,10 @@ describe('quiet by default', () => {
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
     await clock.settle()
     const pane = await $.ui.mount({
-      plugin: 'pr-band',
+      plugin: 'pr-bar',
       surface: 'terminal',
       component: 'Pane',
-      requestId: 'pr-band',
+      requestId: 'pr-bar',
       props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 40 } },
     } as never)
 
@@ -278,13 +278,13 @@ describe('quiet by default', () => {
     expect(await pane.find({ type: 'Button', key: 'select:check:CR2' })).toBeDefined()
   })
 
-  test('the conversation setting counts bot comments in the band', { options: { showConversation: true } }, async ($, on) => {
+  test('the conversation setting counts bot comments in the bar', { options: { showConversation: true } }, async ($, on) => {
     const { clock } = world(on, graphql({ comments: { nodes: [
       { id: 'IC1', author: { login: 'github-actions' }, body: 'Coverage 87%', createdAt: '2026-10-01T11:30:00Z', url: 'https://github.com/o/r/pull/7#c1' },
     ] } }))
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
     await clock.settle()
-    const ui = await $.ui.mount({ plugin: 'pr-band', surface: 'terminal', ...BAND } as never)
+    const ui = await $.ui.mount({ plugin: 'pr-bar', surface: 'terminal', ...BAR } as never)
 
     expect(await ui.find({ type: 'Text', text: '💬 2' })).toBeDefined()
   })
@@ -296,10 +296,10 @@ describe('comments first', () => {
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
     await clock.settle()
     const pane = await $.ui.mount({
-      plugin: 'pr-band',
+      plugin: 'pr-bar',
       surface: 'terminal',
       component: 'Pane',
-      requestId: 'pr-band',
+      requestId: 'pr-bar',
       props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 40 } },
     } as never)
 
@@ -322,10 +322,10 @@ describe('inline code', () => {
     await clock.settle()
 
     const pane = await $.ui.mount({
-      plugin: 'pr-band',
+      plugin: 'pr-bar',
       surface: 'terminal',
       component: 'Pane',
-      requestId: 'pr-band',
+      requestId: 'pr-bar',
       props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 40 } },
     } as never)
 
@@ -353,7 +353,7 @@ describe('new PR', () => {
 
     answer.body = graphql()
     await clock.advance(90_000)
-    expect(opened).toEqual(['pr-band'])
+    expect(opened).toEqual(['pr-bar'])
     expect(store['opened:o/r#7']).toBe(true)
 
     await clock.advance(90_000)
@@ -380,14 +380,14 @@ describe('new PR', () => {
 
 describe('when GitHub cannot be asked', () => {
   const PANE = {
-    plugin: 'pr-band',
+    plugin: 'pr-bar',
     surface: 'terminal',
     component: 'Pane',
-    requestId: 'pr-band',
+    requestId: 'pr-bar',
     props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 40 } },
   }
 
-  test('an error answer shows in the pane and the band, not "Asking GitHub…"', async ($, on) => {
+  test('an error answer shows in the pane and the bar, not "Asking GitHub…"', async ($, on) => {
     const { clock, answer } = world(on, graphql())
     answer.status = 502
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
@@ -398,8 +398,8 @@ describe('when GitHub cannot be asked', () => {
     expect(await pane.find({ type: 'Text', text: /Could not reach GitHub: GitHub answered 502/ })).toBeDefined()
     expect(await pane.find({ type: 'Button', key: 'refresh' })).toBeDefined()
 
-    const band = await $.ui.mount({ plugin: 'pr-band', surface: 'terminal', ...BAND } as never)
-    expect(await band.find({ type: 'Text', text: /pr-band: Could not reach GitHub/ })).toBeDefined()
+    const bar = await $.ui.mount({ plugin: 'pr-bar', surface: 'terminal', ...BAR } as never)
+    expect(await bar.find({ type: 'Text', text: /PrBar: Could not reach GitHub/ })).toBeDefined()
 
     answer.status = 200
     await pane.press({ key: 'refresh' })
@@ -443,15 +443,15 @@ describe('rate limits', () => {
     await clock.advance(90_000)
     const asked = requests.length
 
-    const band = await $.ui.mount({ plugin: 'pr-band', surface: 'terminal', ...BAND } as never)
-    expect(await band.find({ type: 'Link', text: '#7' })).toBeDefined()
-    expect(await band.find({ type: 'Text', text: /stale/ })).toBeDefined()
+    const bar = await $.ui.mount({ plugin: 'pr-bar', surface: 'terminal', ...BAR } as never)
+    expect(await bar.find({ type: 'Link', text: '#7' })).toBeDefined()
+    expect(await bar.find({ type: 'Text', text: /stale/ })).toBeDefined()
 
     const pane = await $.ui.mount({
-      plugin: 'pr-band',
+      plugin: 'pr-bar',
       surface: 'terminal',
       component: 'Pane',
-      requestId: 'pr-band',
+      requestId: 'pr-bar',
       props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 40 } },
     } as never)
     expect(await pane.find({ type: 'Text', text: /rate-limited the requests\. It is asked again in 20m/ })).toBeDefined()

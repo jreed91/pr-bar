@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { BAND, json, NO_PR, PANE, prAnswer, START, world } from './world'
+import { BAR, json, NO_PR, PANE, prAnswer, START, world } from './world'
 
 describe('outside a checkout', () => {
-  test('the band stays hidden and a PR-moving command polls nothing', async ($, on) => {
+  test('the bar stays hidden and a PR-moving command polls nothing', async ($, on) => {
     const { clock, requests } = world(on, { remote: null })
     await $.session.start(START)
     await clock.settle()
@@ -11,14 +11,14 @@ describe('outside a checkout', () => {
     await clock.advance(2_000)
 
     expect(requests).toHaveLength(0)
-    const ui = await $.ui.mount(BAND)
+    const ui = await $.ui.mount(BAR)
     expect(await ui.find({ type: 'Text', text: 'drawn by the engine' })).toBeDefined()
   })
 
   test('before the session starts, /pr says so and the pane waits', async ($, on) => {
     world(on)
 
-    expect(await $.command.run({ command: 'pr', args: '' } as never)).toMatchObject({ text: 'pr-band has not started yet' })
+    expect(await $.command.run({ command: 'pr', args: '' } as never)).toMatchObject({ text: 'PrBar has not started yet' })
     const pane = await $.ui.mount(PANE)
     expect(await pane.find({ type: 'Text', text: 'Starting…' })).toBeDefined()
   })
@@ -31,22 +31,22 @@ describe('/pr', () => {
     await clock.settle()
 
     expect(await $.command.run({ command: 'pr', args: '' } as never)).toMatchObject({ text: 'PR pane opened' })
-    expect(opened).toEqual(['pr-band'])
+    expect(opened).toEqual(['pr-bar'])
 
-    state.panes = [{ id: 'pr-band' }]
+    state.panes = [{ id: 'pr-bar' }]
     expect(await $.command.run({ command: 'pr', args: '' } as never)).toMatchObject({ text: 'PR pane closed' })
-    expect(closed).toEqual(['pr-band'])
+    expect(closed).toEqual(['pr-bar'])
   })
 
-  test("the band's details button toggles it too", async ($, on) => {
+  test("the bar's details button toggles it too", async ($, on) => {
     const { clock, opened } = world(on)
     await $.session.start(START)
     await clock.settle()
-    const ui = await $.ui.mount(BAND)
+    const ui = await $.ui.mount(BAR)
 
     await ui.press({ key: 'details' })
     await clock.settle()
-    expect(opened).toEqual(['pr-band'])
+    expect(opened).toEqual(['pr-bar'])
   })
 })
 
@@ -82,8 +82,8 @@ describe('polling', () => {
     await $.session.start(START)
     const pane = await $.ui.mount(PANE)
     expect(await pane.find({ type: 'Text', text: 'Asking GitHub…' })).toBeDefined()
-    const band = await $.ui.mount(BAND)
-    expect(await band.find({ type: 'Text', text: 'drawn by the engine' })).toBeDefined()
+    const bar = await $.ui.mount(BAR)
+    expect(await bar.find({ type: 'Text', text: 'drawn by the engine' })).toBeDefined()
 
     await $.tool.call({ tool: 'Bash', command: 'git push' } as never)
     await clock.advance(1_500)
@@ -96,7 +96,7 @@ describe('polling', () => {
     expect(requests).toHaveLength(2)
   })
 
-  test('switching branches polls the new one; detached HEAD hides the band', async ($, on) => {
+  test('switching branches polls the new one; detached HEAD hides the bar', async ($, on) => {
     const { clock, state, requests } = world(on, { http: url => json(url && state.head.includes('other') ? NO_PR : prAnswer()) })
     await $.session.start(START)
     await clock.settle()
@@ -106,7 +106,7 @@ describe('polling', () => {
     await clock.advance(2_000)
     await clock.settle()
     expect(requests).toHaveLength(2)
-    const ui = await $.ui.mount(BAND)
+    const ui = await $.ui.mount(BAR)
     expect(await ui.find({ type: 'Text', text: /no PR for other/ })).toBeDefined()
 
     state.head = '3f2a9c0d1e\n'
@@ -122,7 +122,7 @@ describe('problems', () => {
     const { clock, requests } = world(on, { http: () => json({}, 401) })
     await $.session.start(START)
     await clock.settle()
-    const ui = await $.ui.mount(BAND)
+    const ui = await $.ui.mount(BAR)
 
     expect(await ui.find({ type: 'Text', text: /rejected the token/ })).toBeDefined()
     await clock.advance(5 * 60_000)
@@ -134,7 +134,7 @@ describe('problems', () => {
     const { clock } = world(on, { http: () => (status === 200 ? json(prAnswer()) : json({}, status)) })
     await $.session.start(START)
     await clock.settle()
-    const ui = await $.ui.mount(BAND)
+    const ui = await $.ui.mount(BAR)
     expect(await ui.find({ type: 'Text', text: /stale/ })).toBeUndefined()
 
     status = 429
@@ -151,7 +151,7 @@ describe('problems', () => {
 })
 
 describe('session restarts', () => {
-  test('a restart outside the checkout hides the band and leaves the last PR be', async ($, on) => {
+  test('a restart outside the checkout hides the bar and leaves the last PR be', async ($, on) => {
     const { clock, state, requests } = world(on)
     await $.session.start(START)
     await clock.settle()
@@ -161,7 +161,7 @@ describe('session restarts', () => {
     await $.session.start(START)
     await clock.settle()
     await clock.advance(4_000)
-    const ui = await $.ui.mount(BAND)
+    const ui = await $.ui.mount(BAR)
 
     expect(await ui.find({ type: 'Text', text: 'drawn by the engine' })).toBeDefined()
     expect(requests).toHaveLength(1)
@@ -205,7 +205,7 @@ describe('a new PR', () => {
     await $.session.start(START)
     await clock.settle()
 
-    state.panes = [{ id: 'pr-band' }]
+    state.panes = [{ id: 'pr-bar' }]
     answer = prAnswer()
     await clock.advance(90_000)
     await clock.settle()
