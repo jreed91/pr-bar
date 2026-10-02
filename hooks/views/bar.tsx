@@ -4,6 +4,7 @@ import type { Armed, Problem, RepoRef, Snapshot } from '../../types'
 import { ageOf } from '../model/cadence'
 import { fit } from '../model/preview'
 import { rollupOf } from '../model/rollup'
+import { positionOf } from '../model/stack'
 import { problemTextOf } from './pane'
 import { unreadOf, visibleComments } from '../model/unread'
 
@@ -113,6 +114,7 @@ export function barView(
     snapshot.viewer,
   ).length
   const review = pr.reviewDecision ? REVIEW[pr.reviewDecision] : undefined
+  const position = positionOf(pr.stack, pr.number)
 
   if (layout === 'compact') {
     return (
@@ -121,6 +123,7 @@ export function barView(
         <Text dimColor wrap="truncate-end">
           {fit(pr.title, COMPACT_TITLE_COLUMNS)}
         </Text>
+        {position && <Text dimColor>stack {position}</Text>}
         {unread > 0 && <Text color="warning">💬 {unread}</Text>}
         {rollup.overall === 'fail' && <Text color="error">✗ {rollup.fail} failing</Text>}
         {rollup.overall === 'pending' && <Text color="warning">◌ {rollup.pending} running</Text>}
@@ -146,6 +149,7 @@ export function barView(
           {pr.title}
         </Text>
         {pr.isDraft && <Text dimColor> · draft</Text>}
+        {position && <Text dimColor> · stack {position}</Text>}
         {review && <Text color={review.color}> · {review.text}</Text>}
         {pr.hasConflict && <Text color="error"> · ⚠ conflict</Text>}
         {stale}

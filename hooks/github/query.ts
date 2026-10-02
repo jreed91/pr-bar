@@ -1,10 +1,13 @@
-import type { Check, Comment, PullRequest, RepoRef } from '../../types'
+import type { Check, Comment, PullRequest, RepoRef, StackEntry } from '../../types'
 import { imageSrcsOf } from '../model/description'
+import { rollupOf } from '../model/rollup'
+import { stackOf } from '../model/stack'
 
 /**
  * One GraphQL request for everything the bar and pane draw: the viewer,
  * the branch's newest open PR, its head commit's check rollup, and the three
- * kinds of comment.
+ * kinds of comment. `open` lists the repo's other open PRs, enough to find
+ * the stack the branch's PR sits in.
  */
 export const PR_QUERY = `query PrBar($owner: String!, $name: String!, $branch: String!) {
   viewer { login }
@@ -23,6 +26,12 @@ export const PR_QUERY = `query PrBar($owner: String!, $name: String!, $branch: S
         reviewThreads(last: 50) { nodes { isResolved comments(first: 20) { nodes {
           id author { login } body createdAt url path line originalLine diffHunk
         } } } }
+      }
+    }
+    open: pullRequests(states: [OPEN], first: 100, orderBy: { field: UPDATED_AT, direction: DESC }) {
+      nodes {
+        number title url isDraft baseRefName headRefName isCrossRepository
+        commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
       }
     }
   }
@@ -180,6 +189,38 @@ export function commentsOf(pr: Json): Comment[] {
   )
 }
 
+const STACK_CI: Record<string, StackEntry['ci']> = {
+  SUCCESS: 'pass',
+  FAILURE: 'fail',
+  ERROR: 'fail',
+  PENDING: 'pending',
+  EXPECTED: 'pending',
+}
+
+/**
+ * Reads one of the repo's open PRs for the stack. A PR from a fork is left
+ * out: its head branch names a branch in the fork, so it is no parent here.
+ */
+export function stackEntryOf(node: Json): StackEntry | null {
+  if (node['isCrossRepository'] === true || typeof node['number'] !== 'number') {
+    return null
+  }
+
+  const state = stringOf(
+    recordOf(recordOf(listOf(node['commits'])[0]?.['commit'])['statusCheckRollup'])['state'],
+  )
+
+  return {
+    number: node['number'],
+    title: stringOf(node['title']) ?? '',
+    url: stringOf(node['url']) ?? '',
+    isDraft: node['isDraft'] === true,
+    baseRef: stringOf(node['baseRefName']) ?? '',
+    headRef: stringOf(node['headRefName']) ?? '',
+    ci: STACK_CI[state ?? ''] ?? 'none',
+  }
+}
+
 /** What one GraphQL answer came to. */
 export type QueryOutcome =
   | { kind: 'ok'; viewer: string; pr: PullRequest | null }
@@ -214,7 +255,8 @@ export function parseResponse(text: string): QueryOutcome {
   }
 
   const viewer = loginOf(data['viewer'])
-  const node = listOf(recordOf(data['repository'])['pullRequests'])[0]
+  const repository = recordOf(data['repository'])
+  const node = listOf(repository['pullRequests'])[0]
 
   if (!node) {
     return { kind: 'ok', viewer, pr: null }
@@ -225,15 +267,26 @@ export function parseResponse(text: string): QueryOutcome {
     recordOf(recordOf(commit['statusCheckRollup'])['contexts']),
   )
   const decision = stringOf(node['reviewDecision'])
+  const checks = contexts.map(checkOf)
+  const current: StackEntry = {
+    number: typeof node['number'] === 'number' ? node['number'] : 0,
+    title: stringOf(node['title']) ?? '',
+    url: stringOf(node['url']) ?? '',
+    isDraft: node['isDraft'] === true,
+    baseRef: stringOf(node['baseRefName']) ?? '',
+    headRef: stringOf(node['headRefName']) ?? '',
+    ci: rollupOf(checks).overall,
+  }
+  const open = listOf(repository['open']).flatMap(entry => stackEntryOf(entry) ?? [])
 
   return {
     kind: 'ok',
     viewer,
     pr: {
-      number: typeof node['number'] === 'number' ? node['number'] : 0,
-      title: stringOf(node['title']) ?? '',
-      url: stringOf(node['url']) ?? '',
-      isDraft: node['isDraft'] === true,
+      number: current.number,
+      title: current.title,
+      url: current.url,
+      isDraft: current.isDraft,
       reviewDecision:
         decision === 'APPROVED' ||
         decision === 'CHANGES_REQUESTED' ||
@@ -241,13 +294,14 @@ export function parseResponse(text: string): QueryOutcome {
           ? decision
           : null,
       hasConflict: node['mergeable'] === 'CONFLICTING',
-      baseRef: stringOf(node['baseRefName']) ?? '',
-      headRef: stringOf(node['headRefName']) ?? '',
+      baseRef: current.baseRef,
+      headRef: current.headRef,
       headSha: stringOf(commit['oid']) ?? '',
-      checks: contexts.map(checkOf),
+      checks,
       comments: commentsOf(node),
       body: stringOf(node['body']) ?? '',
       imageSrcs: imageSrcsOf(stringOf(node['bodyHTML']) ?? ''),
+      stack: stackOf(current, open),
     },
   }
 }

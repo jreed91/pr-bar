@@ -29,6 +29,18 @@ export type Comment = {
   isResolved: boolean
 }
 
+/** One open PR in a stack, as the band and pane list it. */
+export type StackEntry = {
+  number: number
+  title: string
+  url: string
+  isDraft: boolean
+  baseRef: string
+  headRef: string
+  /** Its head commit's CI, folded like the current PR's rollup. */
+  ci: 'pass' | 'fail' | 'pending' | 'none'
+}
+
 export type PullRequest = {
   number: number
   title: string
@@ -45,6 +57,12 @@ export type PullRequest = {
   body: string
   /** The description's image sources as GitHub renders them, in order. */
   imageSrcs: string[]
+  /**
+   * The stack this PR sits in, bottom (based on the trunk) first and this PR
+   * included; empty when no open PR is based on it and it is based on no
+   * open PR's branch.
+   */
+  stack: StackEntry[]
 }
 
 /** A description image as fetched: drawn from its PNG bytes, or shown as a link. */

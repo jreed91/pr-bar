@@ -39,5 +39,6 @@ export const prOf = (overrides: Partial<PullRequest> = {}): PullRequest => ({
   comments: [],
   body: '',
   imageSrcs: [],
+  stack: [],
   ...overrides,
 })
