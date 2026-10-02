@@ -26,13 +26,13 @@ export const commentOf = (overrides: Partial<Comment> = {}): Comment => ({
 
 export const prOf = (overrides: Partial<PullRequest> = {}): PullRequest => ({
   number: 7,
-  title: 'Add the band',
+  title: 'Add the bar',
   url: 'https://github.com/o/r/pull/7',
   isDraft: false,
   reviewDecision: null,
   hasConflict: false,
   baseRef: 'main',
-  headRef: 'feat/band',
+  headRef: 'feat/bar',
   headSha: 'abcdef1234567',
   checks: [],
   comments: [],

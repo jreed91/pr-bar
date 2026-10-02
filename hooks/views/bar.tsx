@@ -9,23 +9,23 @@ import { unreadOf, visibleComments } from '../model/unread'
 
 /** A poll older than this draws the stale tag. */
 export const STALE_AFTER_MS = 3 * 60_000
-/** The compact band's title, at most. */
+/** The compact bar's title, at most. */
 const COMPACT_TITLE_COLUMNS = 48
 
-export type BandLayout = 'compact' | 'full'
+export type BarLayout = 'compact' | 'full'
 
-export type BandModel = {
+export type BarModel = {
   repo: RepoRef
   snapshot: Snapshot | null
   problem: Problem | null
   lastRead: number
   armed: readonly Armed[]
   now: number
-  layout: BandLayout
+  layout: BarLayout
   showConversation: boolean
 }
 
-export type BandActions = {
+export type BarActions = {
   details: () => void
   markRead: () => void
   refresh: () => void
@@ -46,11 +46,11 @@ export function compareUrlOf(repo: RepoRef): string {
   return `https://github.com/${repo.owner}/${repo.name}/compare/${encodeURIComponent(repo.branch)}?expand=1`
 }
 
-/** The band's tree, or null when there is nothing to draw yet. */
-export function bandView(
+/** The bar's tree, or null when there is nothing to draw yet. */
+export function barView(
   { Box, Text, Button, Link }: Table,
-  model: BandModel,
-  actions: BandActions,
+  model: BarModel,
+  actions: BarActions,
 ): JSX.Element | null {
   const { repo, snapshot, problem, lastRead, armed, now, layout } = model
 
@@ -58,7 +58,7 @@ export function bandView(
     return (
       <Box>
         <Text color="warning" wrap="truncate-end">
-          pr-band: no GitHub token. Set GH_TOKEN, run `gh auth login`, or add one under /config.
+          PrBar: no GitHub token. Set GH_TOKEN, run `gh auth login`, or add one under /config.
         </Text>
       </Box>
     )
@@ -68,7 +68,7 @@ export function bandView(
     return (
       <Box>
         <Text color="error" wrap="truncate-end">
-          pr-band: GitHub rejected the token (401); it is asked again every 5 minutes.
+          PrBar: GitHub rejected the token (401); it is asked again every 5 minutes.
         </Text>
       </Box>
     )
@@ -78,7 +78,7 @@ export function bandView(
     return problem ? (
       <Box columnGap={1}>
         <Text color="error" wrap="truncate-end">
-          pr-band: {problemTextOf(problem)}
+          PrBar: {problemTextOf(problem)}
         </Text>
         <Button key="refresh" hotkey="r" plain dimColor label="retry" onPress={actions.refresh} />
       </Box>

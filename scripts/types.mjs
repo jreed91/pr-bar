@@ -19,7 +19,7 @@ const TIMEOUT_MS = 60_000
 
 rmSync(TYPES, { recursive: true, force: true })
 
-const home = mkdtempSync(join(tmpdir(), 'pr-band-types-'))
+const home = mkdtempSync(join(tmpdir(), 'pr-bar-types-'))
 const session = spawn('claude', ['--plugin-dir', ROOT, '-p', 'types'], {
   cwd: ROOT,
   stdio: 'ignore',

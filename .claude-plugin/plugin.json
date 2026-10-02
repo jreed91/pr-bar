@@ -1,7 +1,7 @@
 {
-  "name": "pr-band",
-  "version": "0.3.2",
-  "description": "A band above the prompt with the current branch's GitHub PR, CI state and unread review comments, plus a /pr detail pane that hands failing checks and comments to Claude.",
+  "name": "pr-bar",
+  "version": "0.4.0",
+  "description": "A bar above the prompt with the current branch's GitHub PR, CI state and unread review comments, plus a /pr detail pane that hands failing checks and comments to Claude.",
   "author": {
     "name": "jreed91"
   },
@@ -15,9 +15,9 @@
     "mod"
   ],
   "userConfig": {
-    "bandLayout": {
+    "barLayout": {
       "type": "string",
-      "title": "Band layout",
+      "title": "Bar layout",
       "description": "compact: one line (PR, CI, new comments). full: two rows with the title, failing check names, attachments and buttons.",
       "options": [
         "compact",
@@ -40,7 +40,7 @@
     "openOnNewPr": {
       "type": "boolean",
       "title": "Open the pane for a new PR",
-      "description": "Open the /pr pane when a PR is opened for the current branch during the session (for example by gh pr create). Once per PR; the band shows either way.",
+      "description": "Open the /pr pane when a PR is opened for the current branch during the session (for example by gh pr create). Once per PR; the bar shows either way.",
       "default": true
     },
     "githubToken": {

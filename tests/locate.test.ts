@@ -55,9 +55,9 @@ describe('readRepoRef', () => {
   const checkout = { headPath: '/repo/.git/HEAD', owner: 'o', name: 'r' }
 
   test('names the branch HEAD is on', async () => {
-    const host = tree('/repo', { '/repo/.git/HEAD': 'ref: refs/heads/feat/band\n' })
+    const host = tree('/repo', { '/repo/.git/HEAD': 'ref: refs/heads/feat/bar\n' })
 
-    expect(await readRepoRef(host, checkout)).toEqual({ owner: 'o', name: 'r', branch: 'feat/band' })
+    expect(await readRepoRef(host, checkout)).toEqual({ owner: 'o', name: 'r', branch: 'feat/bar' })
   })
 
   test('is null when HEAD is detached or unreadable', async () => {

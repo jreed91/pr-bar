@@ -37,19 +37,19 @@ export const inlineComment = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
-/** A GraphQL answer with PR #7 on feat/band; `pr` overrides its fields, `checks` its check nodes. */
+/** A GraphQL answer with PR #7 on feat/bar; `pr` overrides its fields, `checks` its check nodes. */
 export const prAnswer = (pr: Record<string, unknown> = {}, checks: unknown[] = [checkRun()]) => ({
   data: {
     viewer: { login: 'me' },
     repository: { pullRequests: { nodes: [{
       number: 7,
-      title: 'Add the band',
+      title: 'Add the bar',
       url: 'https://github.com/o/r/pull/7',
       isDraft: false,
       reviewDecision: null,
       mergeable: 'MERGEABLE',
       baseRefName: 'main',
-      headRefName: 'feat/band',
+      headRefName: 'feat/bar',
       commits: { nodes: [{ commit: { oid: 'abc1234', statusCheckRollup: { contexts: { nodes: checks } } } }] },
       comments: { nodes: [] },
       reviews: { nodes: [] },
@@ -70,13 +70,13 @@ export type WorldOptions = {
 }
 
 /**
- * A checkout of o/r at /repo on feat/band, a token in the env, and GitHub
+ * A checkout of o/r at /repo on feat/bar, a token in the env, and GitHub
  * answering through `http`. Everything it records, and the HEAD and pane
  * list it serves, can be read and changed by the test.
  */
 export function world(on: On, options: WorldOptions = {}) {
   const state = {
-    head: 'ref: refs/heads/feat/band\n',
+    head: 'ref: refs/heads/feat/bar\n',
     remote: options.remote === undefined ? 'git@github.com:o/r.git' : options.remote,
     http: options.http ?? (() => json(prAnswer())),
     panes: [] as { id: string }[],
@@ -133,17 +133,17 @@ export function world(on: On, options: WorldOptions = {}) {
 
 export const START = { cwd: '/repo', surface: 'terminal', isInteractive: true } as never
 
-export const BAND = {
-  plugin: 'pr-band',
+export const BAR = {
+  plugin: 'pr-bar',
   surface: 'terminal',
   component: 'AbovePrompt',
   props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 } },
 } as never
 
 export const PANE = {
-  plugin: 'pr-band',
+  plugin: 'pr-bar',
   surface: 'terminal',
   component: 'Pane',
-  requestId: 'pr-band',
+  requestId: 'pr-bar',
   props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 60 } },
 } as never

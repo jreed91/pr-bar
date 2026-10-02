@@ -7,7 +7,7 @@ const API = 'https://api.github.com'
 const headersOf = (token: string): Record<string, string> => ({
   authorization: `Bearer ${token}`,
   accept: 'application/vnd.github+json',
-  'user-agent': 'pr-band-claude-code-mod',
+  'user-agent': 'pr-bar-claude-code-mod',
   'x-github-api-version': '2022-11-28',
 })
 

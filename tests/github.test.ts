@@ -5,7 +5,7 @@ import { fetchJobLogTail, fetchPullRequest } from '../hooks/github/client'
 import { resolveToken } from '../hooks/github/token'
 import { hostOf, responseOf } from './host'
 
-const REPO = { owner: 'o', name: 'r', branch: 'feat/band' }
+const REPO = { owner: 'o', name: 'r', branch: 'feat/bar' }
 /** The request timeout's timer: never fires, since these answers come at once. */
 const idleTimer = { now: async () => 0, after: () => ({ cancel: () => {} }) } as unknown as Partial<Parameters<typeof hostOf>[0]>
 const EMPTY_PR = JSON.stringify({ data: { viewer: { login: 'me' }, repository: { pullRequests: { nodes: [] } } } })

@@ -15,7 +15,7 @@ import type {
 
 import type { Armed, Problem, RepoRef, Selection, Snapshot } from '../types'
 
-/** What the band and pane draw from: module state, redrawn through `invalidate`. */
+/** What the bar and pane draw from: module state, redrawn through `invalidate`. */
 export type View = {
   repo: RepoRef | null
   snapshot: Snapshot | null
