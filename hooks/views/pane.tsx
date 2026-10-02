@@ -522,7 +522,7 @@ function checkDetail(
             key="fix-ci"
             hotkey="f"
             variant="primary"
-            label={isArmed ? 'Fix CI (attached)' : 'Fix CI'}
+            label={isArmed ? 'Attached to next prompt' : 'Attach to prompt'}
             onPress={() => actions.fixCi(check)}
           />
         )}
@@ -560,7 +560,7 @@ function commentDetail(
           key="address"
           hotkey="a"
           variant="primary"
-          label={isArmed ? 'Address (attached)' : 'Address'}
+          label={isArmed ? 'Attached to next prompt' : 'Attach to prompt'}
           onPress={() => actions.address(comment)}
         />
         {comment.url && <Link href={comment.url} label="Open on GitHub" />}

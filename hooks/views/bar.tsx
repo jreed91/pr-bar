@@ -127,14 +127,9 @@ export function barView(
         {rollup.overall === 'pass' && <Text color="success">✓ CI</Text>}
         {review && <Text color={review.color}>{review.short}</Text>}
         {pr.hasConflict && <Text color="error">⚠ conflict</Text>}
+        {armed.length > 0 && <Text color="warning">📎 {armed.length} for next prompt</Text>}
         {armed.length > 0 && (
-          <Button
-            key="disarm-all"
-            plain
-            dimColor
-            label={`📎 ${armed.length} ✕`}
-            onPress={actions.disarmAll}
-          />
+          <Button key="disarm-all" plain dimColor label="✕" onPress={actions.disarmAll} />
         )}
         {stale}
         <Button key="details" hotkey="d" plain dimColor label="details" onPress={actions.details} />
