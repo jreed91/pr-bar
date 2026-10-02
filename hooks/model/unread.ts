@@ -2,7 +2,7 @@ import type { Comment, RepoRef } from '../../types'
 
 /**
  * The comments the viewer has not read: newer than the PR's "Mark read"
- * time, and not their own. Bots count.
+ * time, not their own and not on a resolved thread. Bots count.
  */
 export function unreadOf(
   comments: readonly Comment[],
@@ -12,6 +12,7 @@ export function unreadOf(
   return comments.filter(
     comment =>
       comment.createdAt > lastRead &&
+      !comment.isResolved &&
       comment.author.toLowerCase() !== viewer.toLowerCase(),
   )
 }

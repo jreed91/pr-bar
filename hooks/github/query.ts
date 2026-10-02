@@ -124,6 +124,7 @@ export function commentsOf(pr: Json): Comment[] {
       line: null,
       diffHunk: null,
       reviewState: null,
+      isResolved: false,
     }),
   )
 
@@ -146,13 +147,12 @@ export function commentsOf(pr: Json): Comment[] {
         line: null,
         diffHunk: null,
         reviewState: stringOf(node['state']),
+        isResolved: false,
       }),
     )
 
-  const inline = listOf(pr['reviewThreads'])
-    .filter(thread => thread['isResolved'] !== true)
-    .flatMap(thread => listOf(thread['comments']))
-    .map(
+  const inline = listOf(pr['reviewThreads']).flatMap(thread =>
+    listOf(thread['comments']).map(
       (node): Comment => ({
         id: stringOf(node['id']) ?? '',
         kind: 'review-comment',
@@ -169,8 +169,10 @@ export function commentsOf(pr: Json): Comment[] {
               : null,
         diffHunk: stringOf(node['diffHunk']),
         reviewState: null,
+        isResolved: thread['isResolved'] === true,
       }),
-    )
+    ),
+  )
 
   return [...conversation, ...reviews, ...inline].sort(
     (a, b) => a.createdAt - b.createdAt,

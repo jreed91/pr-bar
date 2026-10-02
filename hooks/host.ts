@@ -28,6 +28,7 @@ export type View = {
   /** Session toggles, seeded from the plugin's settings. */
   showPassing: boolean
   showConversation: boolean
+  showResolved: boolean
   /** The pane's capped lists the person asked to see in full. */
   expanded: readonly ExpandableList[]
 }

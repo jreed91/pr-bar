@@ -34,6 +34,8 @@ export type PaneModel = {
   showPassing: boolean
   /** List the conversation (summaries, bot reports), not just its count. */
   showConversation: boolean
+  /** List the comments on resolved threads, not just their count. */
+  showResolved: boolean
   /** The capped lists shown in full. */
   expanded: readonly ExpandableList[]
 }
@@ -47,6 +49,7 @@ export type PaneActions = {
   refresh: () => void
   togglePassing: () => void
   toggleConversation: () => void
+  toggleResolved: () => void
   /** Shows a capped list in full, or caps it again. */
   toggleMore: (list: ExpandableList) => void
 }
@@ -170,7 +173,13 @@ export function paneView(
   const quiet = allChecks.filter(isQuiet)
   const checks = model.showPassing ? allChecks : allChecks.filter(check => !isQuiet(check))
   const comments = orderedComments(pr.comments, lastRead, viewer)
-  const inline = comments.filter(row => row.comment.kind === 'review-comment')
+  const allInline = comments.filter(row => row.comment.kind === 'review-comment')
+  const resolved = allInline.filter(row => row.comment.isResolved)
+  // Resolved threads are settled: listed last, and only when asked.
+  const inline = [
+    ...allInline.filter(row => !row.comment.isResolved),
+    ...(model.showResolved ? resolved : []),
+  ]
   const conversation = comments.filter(row => row.comment.kind !== 'review-comment')
   const rowWidth = Math.max(20, model.columns - MARKER_COLUMNS - 1)
 
@@ -269,6 +278,20 @@ export function paneView(
         commentDetailOf,
       )}
       {moreRow('inline', inline.length, LIST_ROWS)}
+      {resolved.length > 0 && (
+        <Box>
+          <Box width={MARKER_COLUMNS} flexShrink={0}>
+            <Text dimColor>  {model.showResolved ? '▾' : '▸'}</Text>
+          </Box>
+          <Button
+            key="toggle-resolved"
+            plain
+            dimColor
+            label={model.showResolved ? `hide ${resolved.length} resolved` : `${resolved.length} resolved`}
+            onPress={actions.toggleResolved}
+          />
+        </Box>
+      )}
       {model.showConversation ? (
         commentList(
           { Box, Text, Button },
@@ -395,7 +418,7 @@ function commentList(
             <Box width={MARKER_COLUMNS} flexShrink={0}>
               <Text color={isUnread ? 'warning' : 'inactive'}>
                 {isOpen(selection, comment) ? '❯' : ' '}{' '}
-                {isUnread ? '●' : '·'}
+                {isUnread ? '●' : comment.isResolved ? '✓' : '·'}
               </Text>
             </Box>
             <Button

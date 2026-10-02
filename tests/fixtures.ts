@@ -21,6 +21,7 @@ export const commentOf = (overrides: Partial<Comment> = {}): Comment => ({
   line: 12,
   diffHunk: '@@ -10,3 +10,3 @@\n-const a = 1\n+const b = 1',
   reviewState: null,
+  isResolved: false,
   ...overrides,
 })
 
