@@ -11,7 +11,7 @@
       "name": "pr-band",
       "source": "./",
       "description": "A band above the prompt with the current branch's GitHub PR, CI state and unread review comments, plus a /pr detail pane that hands failing checks and comments to Claude.",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "author": {
         "name": "jreed91"
       },

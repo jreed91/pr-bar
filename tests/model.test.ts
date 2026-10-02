@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'claude-code/testing'
 
+import { retryAfterMsOf } from '../hooks/github/client'
 import { armCheck, armComment, contextOf, withArmed } from '../hooks/model/armed'
-import { ageOf, isPrMovingCommand, nextPollMs } from '../hooks/model/cadence'
+import { ageOf, BACKOFF_MS, isPrMovingCommand, nextPollMs, rateLimitWaitMs } from '../hooks/model/cadence'
 import { hasTurnedRed, rollupOf } from '../hooks/model/rollup'
 import { orderedComments, unreadOf } from '../hooks/model/unread'
 import { checkOf, commentOf, prOf } from './fixtures'
@@ -107,5 +108,17 @@ describe('cadence', () => {
 
   test('ages', async () => {
     expect([ageOf(30_000), ageOf(240_000), ageOf(7_200_000)]).toEqual(['30s', '4m', '2h'])
+  })
+})
+
+describe('rate limit wait', () => {
+  test('reads retry-after, else the reset when the budget is spent', async () => {
+    expect(retryAfterMsOf({ 'retry-after': '60' }, 0)).toBe(60_000)
+    expect(retryAfterMsOf({ 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1000' }, 400_000)).toBe(600_000)
+    expect(retryAfterMsOf({ 'x-ratelimit-remaining': '12', 'x-ratelimit-reset': '1000' }, 0)).toBeNull()
+    expect(rateLimitWaitMs(null)).toBe(BACKOFF_MS)
+    expect(rateLimitWaitMs(5_000)).toBe(30_000)
+    expect(rateLimitWaitMs(600_000)).toBe(601_000)
+    expect(rateLimitWaitMs(10 * 3_600_000)).toBe(3_600_000)
   })
 })

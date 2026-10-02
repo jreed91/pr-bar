@@ -7,7 +7,7 @@ import { hostOf, responseOf } from './host'
 
 const REPO = { owner: 'o', name: 'r', branch: 'feat/band' }
 /** The request timeout's timer: never fires, since these answers come at once. */
-const idleTimer = { after: () => ({ cancel: () => {} }) } as unknown as Partial<Parameters<typeof hostOf>[0]>
+const idleTimer = { now: async () => 0, after: () => ({ cancel: () => {} }) } as unknown as Partial<Parameters<typeof hostOf>[0]>
 const EMPTY_PR = JSON.stringify({ data: { viewer: { login: 'me' }, repository: { pullRequests: { nodes: [] } } } })
 
 describe('fetchPullRequest', () => {
@@ -36,8 +36,10 @@ describe('fetchPullRequest', () => {
       fetchPullRequest(answering(response).host, 'tok', REPO)
 
     expect(await outcome(responseOf(401))).toEqual({ kind: 'token-rejected' })
-    expect(await outcome(responseOf(429))).toEqual({ kind: 'rate-limited' })
-    expect(await outcome(responseOf(403, '', { 'x-ratelimit-remaining': '0' }))).toEqual({ kind: 'rate-limited' })
+    expect(await outcome(responseOf(429))).toEqual({ kind: 'rate-limited', retryAfterMs: null })
+    expect(await outcome(responseOf(403, '', { 'x-ratelimit-remaining': '0' }))).toEqual({ kind: 'rate-limited', retryAfterMs: null })
+    expect(await outcome(responseOf(403, '', { 'retry-after': '60' }))).toEqual({ kind: 'rate-limited', retryAfterMs: 60_000 })
+    expect(await outcome(responseOf(200, JSON.stringify({ errors: [{ type: 'RATE_LIMITED' }] }), { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '120' }))).toEqual({ kind: 'rate-limited', retryAfterMs: 120_000 })
     expect(await outcome(responseOf(403, '', { 'x-ratelimit-remaining': '12' }))).toEqual({ kind: 'offline', detail: 'GitHub answered 403' })
     expect(await outcome(responseOf(502))).toEqual({ kind: 'offline', detail: 'GitHub answered 502' })
   })

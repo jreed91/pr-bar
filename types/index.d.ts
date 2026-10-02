@@ -53,7 +53,7 @@ export type Snapshot = {
 export type Problem =
   | { kind: 'no-token' }
   | { kind: 'token-rejected' }
-  | { kind: 'rate-limited' }
+  | { kind: 'rate-limited'; waitMs: number }
   | { kind: 'offline'; detail: string }
 
 /** Context waiting to ride the next prompt. */

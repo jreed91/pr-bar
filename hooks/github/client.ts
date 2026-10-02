@@ -36,7 +36,8 @@ export function withTimeout<T>(host: Host, work: Promise<T>, ms: number): Promis
 
 /** What one poll came to, the HTTP failures folded in. */
 export type FetchOutcome =
-  | QueryOutcome
+  | Exclude<QueryOutcome, { kind: 'rate-limited' }>
+  | { kind: 'rate-limited'; retryAfterMs: number | null }
   | { kind: 'token-rejected' }
   | { kind: 'offline'; detail: string }
 
@@ -61,18 +62,25 @@ export async function fetchPullRequest(
       return { kind: 'token-rejected' }
     }
 
+    const retryAfterMs = retryAfterMsOf(response.headers, await host.now())
+
+    // 403 is a rate limit when the budget is spent or GitHub says when to
+    // come back (its secondary limits); otherwise it is a refusal.
     if (
       response.status === 429 ||
-      (response.status === 403 && response.headers['x-ratelimit-remaining'] === '0')
+      (response.status === 403 &&
+        (response.headers['x-ratelimit-remaining'] === '0' || response.headers['retry-after']))
     ) {
-      return { kind: 'rate-limited' }
+      return { kind: 'rate-limited', retryAfterMs }
     }
 
     if (!response.ok) {
       return { kind: 'offline', detail: `GitHub answered ${response.status}` }
     }
 
-    return parseResponse(response.text)
+    const outcome = parseResponse(response.text)
+
+    return outcome.kind === 'rate-limited' ? { kind: 'rate-limited', retryAfterMs } : outcome
   } catch (error) {
     return { kind: 'offline', detail: messageOf(error, 'network error') }
   }
@@ -81,6 +89,30 @@ export async function fetchPullRequest(
 /** What went wrong, as the error says it, else `fallback`. */
 export function messageOf(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback
+}
+
+/**
+ * How long GitHub asks us to wait: `retry-after` in seconds, else the
+ * `x-ratelimit-reset` epoch second when the budget is spent. Null when it
+ * says neither.
+ */
+export function retryAfterMsOf(
+  headers: Readonly<Record<string, string>>,
+  now: number,
+): number | null {
+  const retryAfter = Number(headers['retry-after'])
+
+  if (headers['retry-after'] && Number.isFinite(retryAfter)) {
+    return Math.max(0, retryAfter * 1000)
+  }
+
+  const reset = Number(headers['x-ratelimit-reset'])
+
+  if (headers['x-ratelimit-remaining'] === '0' && Number.isFinite(reset) && reset > 0) {
+    return Math.max(0, reset * 1000 - now)
+  }
+
+  return null
 }
 
 /** How many lines of a failing job's log ride along. */

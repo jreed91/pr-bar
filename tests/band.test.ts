@@ -59,13 +59,13 @@ function world(on: On, body: unknown, store: Record<string, unknown> = {}, env: 
   })
   on('ui.render', () => null as never)
   const requests: string[] = []
-  const answer = { body, status: 200, hangs: false }
+  const answer = { body, status: 200, hangs: false, headers: {} as Record<string, string> }
   on('http.fetch', (_$, e) => {
     requests.push(e.url)
     if (answer.hangs) {
       return new Promise<never>(() => {})
     }
-    return { value: { status: answer.status, ok: answer.status < 300, headers: {}, text: JSON.stringify(answer.body) } }
+    return { value: { status: answer.status, ok: answer.status < 300, headers: answer.headers, text: JSON.stringify(answer.body) } }
   })
   return { requests, clock, toasts, answer, opened }
 }
@@ -429,5 +429,40 @@ describe('when GitHub cannot be asked', () => {
 
     const pane = await $.ui.mount(PANE as never)
     expect(await pane.find({ type: 'Text', text: /No GitHub branch here/ })).toBeDefined()
+  })
+})
+
+describe('rate limits', () => {
+  test('keeps the last answer, marks it stale and waits for GitHub\'s reset', async ($, on) => {
+    const { clock, answer, requests } = world(on, graphql())
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+    await clock.settle()
+
+    answer.status = 403
+    answer.headers = { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(Math.round((NOW + 90_000 + 20 * 60_000) / 1000)) }
+    await clock.advance(90_000)
+    const asked = requests.length
+
+    const band = await $.ui.mount({ plugin: 'pr-band', surface: 'terminal', ...BAND } as never)
+    expect(await band.find({ type: 'Link', text: '#7' })).toBeDefined()
+    expect(await band.find({ type: 'Text', text: /stale/ })).toBeDefined()
+
+    const pane = await $.ui.mount({
+      plugin: 'pr-band',
+      surface: 'terminal',
+      component: 'Pane',
+      requestId: 'pr-band',
+      props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 40 } },
+    } as never)
+    expect(await pane.find({ type: 'Text', text: /rate-limited the requests\. It is asked again in 20m/ })).toBeDefined()
+    expect(await pane.find({ type: 'Link', text: '#7' })).toBeDefined()
+
+    // Nothing is asked until the reset, then polling picks up again.
+    await clock.advance(19 * 60_000)
+    expect(requests.length).toBe(asked)
+    answer.status = 200
+    answer.headers = {}
+    await clock.advance(2 * 60_000)
+    expect(requests.length).toBe(asked + 1)
   })
 })
