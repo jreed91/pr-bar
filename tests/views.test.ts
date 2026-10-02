@@ -88,7 +88,8 @@ describe('pane', () => {
   test('nothing failing and nothing unread: nothing selected, nothing listed', async ($, on) => {
     const pane = await drawn($, on, prAnswer({ isDraft: true, mergeable: 'CONFLICTING', ...noComments }, []), PANE)
 
-    expect(await pane.find({ type: 'Text', text: /main ← feat\/bar · draft · conflict/ })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: /main ← feat\/bar · draft/ })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: '· conflict' })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: /none reported/ })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: /^ *none$/ })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: /Nothing failing and nothing unread/ })).toBeDefined()
@@ -201,7 +202,7 @@ describe('pane', () => {
     await pane.redraw()
     await pane.press({ key: 'select:comment:IC1' })
     await pane.redraw()
-    expect(await pane.find({ type: 'Text', text: /^comment$/ })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: '@bob · comment' })).toBeDefined()
 
     await pane.press({ key: 'select:comment:RV1' })
     await pane.redraw()
@@ -209,7 +210,7 @@ describe('pane', () => {
     await pane.redraw()
     // Folded away, the picked review still shows, at the foot.
     expect(await pane.find({ type: 'Button', key: 'select:comment:RV1' })).toBeUndefined()
-    expect(await pane.find({ type: 'Text', text: /review · changes_requested/ })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: /@\w+ · review, changes requested/ })).toBeDefined()
     expect(await pane.find({ type: 'Markdown', text: '_(no text)_' })).toBeDefined()
     expect(await pane.find({ type: 'Button', key: 'toggle-conversation' })).toBeDefined()
   })
@@ -218,7 +219,7 @@ describe('pane', () => {
     const answer = prAnswer({ reviewThreads: { nodes: [{ isResolved: false, comments: { nodes: [inlineComment({ line: null })] } }] } }, [])
     const pane = await drawn($, on, answer, PANE)
 
-    expect(await pane.find({ type: 'Text', text: /^inline · src\/app\.ts$/ })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: /^src\/app\.ts$/ })).toBeDefined()
   })
 })
 
@@ -297,6 +298,9 @@ describe('resolved threads', () => {
     const keys = (await pane.findAll({ type: 'Button' })).map(button => button.key).filter(key => key?.startsWith('select:comment:'))
     expect(keys).toEqual(['select:comment:RC1', 'select:comment:RC9'])
     expect(await pane.find({ type: 'Text', text: /✓/ })).toBeDefined()
+    await pane.press({ key: 'select:comment:RC9' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Text', text: 'src/app.ts:3 · resolved' })).toBeDefined()
 
     await pane.press({ key: 'toggle-resolved' })
     await pane.redraw()

@@ -6,7 +6,7 @@ A Claude Code mod that puts the current branch's GitHub PR above the prompt, so 
 
 ![The /pr pane beside the transcript, with the failing check selected and its log tail loaded](docs/screenshots/pane-check.png)
 
-![The /pr pane with an inline review comment selected: opened in place with the commented lines, its text and the Address button](docs/screenshots/pane-comment.png)
+![The /pr pane with an inline review comment selected: opened in place as a card with its full path, the commented lines, its text, Address and Open on GitHub](docs/screenshots/pane-comment.png)
 
 _The screenshots are the trees the mod draws for a sample PR, captured through `claude plugin test` and rendered in a terminal frame._
 

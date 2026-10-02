@@ -84,7 +84,7 @@ describe('Fix CI', () => {
 
     expect(await pane.find({ type: 'Text', text: /not fetchable here/ })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: '3 tests failed' })).toBeDefined()
-    expect(await pane.find({ type: 'Link', text: 'Open' })).toBeUndefined()
+    expect(await pane.find({ type: 'Link', text: 'Open on GitHub' })).toBeUndefined()
     await pane.press({ key: 'fix-ci' })
     await clock.settle()
     expect(requests).not.toContain(LOG)

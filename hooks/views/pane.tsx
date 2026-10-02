@@ -82,6 +82,19 @@ const KIND: Record<Comment['kind'], string> = {
   review: 'review',
 }
 
+const DECISION: Record<NonNullable<PullRequest['reviewDecision']>, string> = {
+  APPROVED: 'success',
+  CHANGES_REQUESTED: 'error',
+  REVIEW_REQUIRED: 'warning',
+}
+
+const STATE: Record<Check['state'], string> = {
+  fail: 'failed',
+  pending: 'running',
+  pass: 'passed',
+  skip: 'skipped',
+}
+
 /** One sentence for why GitHub could not be asked, and what happens next. */
 export function problemTextOf(problem: Problem): string {
   switch (problem.kind) {
@@ -261,12 +274,16 @@ export function paneView(
             {pr.title}
           </Text>
         </Box>
-        <Text dimColor wrap="truncate-end">
-          {pr.baseRef} ← {pr.headRef}
-          {pr.isDraft ? ' · draft' : ''}
-          {pr.reviewDecision ? ` · ${pr.reviewDecision.toLowerCase().replace('_', ' ')}` : ''}
-          {pr.hasConflict ? ' · conflict' : ''}
-        </Text>
+        <Box columnGap={1}>
+          <Text dimColor wrap="truncate-end">
+            {pr.baseRef} ← {pr.headRef}
+            {pr.isDraft ? ' · draft' : ''}
+          </Text>
+          {pr.reviewDecision && (
+            <Text color={DECISION[pr.reviewDecision]}>· {pr.reviewDecision.toLowerCase().replace('_', ' ')}</Text>
+          )}
+          {pr.hasConflict && <Text color="error">· conflict</Text>}
+        </Box>
         {model.problem && (
           <Text color="warning" wrap="truncate-end">
             Showing the last answer. {problemTextOf(model.problem)}
@@ -411,8 +428,13 @@ export function paneView(
 
       {!isOpenInPlace && (
         <Box marginTop={1} flexDirection="column">
-          {selectedCheck && checkDetailOf(selectedCheck)}
-          {selectedComment && commentDetailOf(selectedComment)}
+          {selectedCheck && (
+            <Text bold color={ICON[selectedCheck.state].color}>
+              {ICON[selectedCheck.state].glyph} {selectedCheck.name}
+            </Text>
+          )}
+          {selectedCheck && openedRow(Box, checkDetailOf(selectedCheck))}
+          {selectedComment && openedRow(Box, commentDetailOf(selectedComment))}
           {!selectedCheck && !selectedComment && model.selection?.kind !== 'none' && (
             <Text dimColor>Nothing failing and nothing unread. Pick a row to see it.</Text>
           )}
@@ -483,14 +505,18 @@ function checkDetail(
 ): JSX.Element {
   return (
     <Box flexDirection="column">
-      <Box columnGap={1}>
-        <Text bold color={ICON[check.state].color}>
-          {ICON[check.state].glyph} {check.name}
-        </Text>
-        {check.url && <Link href={check.url} label="Open" />}
-      </Box>
-      {check.description && <Text dimColor>{check.description}</Text>}
-      <Box columnGap={1}>
+      <Text dimColor wrap="truncate-end">
+        {check.description ?? STATE[check.state]}
+      </Text>
+      {check.jobId === null && (
+        <Text dimColor>Not a GitHub Actions job, so its log is not fetchable here.</Text>
+      )}
+      {log !== null && (
+        <Box marginTop={1}>
+          <Code source={log || '(empty log)'} wrap="truncate-end" />
+        </Box>
+      )}
+      <Box marginTop={1} columnGap={2}>
         {check.state === 'fail' && (
           <Button
             key="fix-ci"
@@ -508,11 +534,8 @@ function checkDetail(
             onPress={() => actions.loadLog(check)}
           />
         )}
+        {check.url && <Link href={check.url} label="Open on GitHub" />}
       </Box>
-      {check.jobId === null && (
-        <Text dimColor>Not a GitHub Actions job, so its log is not fetchable here.</Text>
-      )}
-      {log !== null && <Code source={log || '(empty log)'} wrap="truncate-end" />}
     </Box>
   )
 }
@@ -525,18 +548,14 @@ function commentDetail(
 ): JSX.Element {
   return (
     <Box flexDirection="column">
-      <Box columnGap={1}>
-        <Text bold>@{comment.author}</Text>
-        <Text dimColor>
-          {KIND[comment.kind]}
-          {comment.reviewState ? ` · ${comment.reviewState.toLowerCase()}` : ''}
-          {comment.path ? ` · ${comment.path}${comment.line ? `:${comment.line}` : ''}` : ''}
-        </Text>
-        {comment.url && <Link href={comment.url} label="Open" />}
+      <Text dimColor wrap="truncate-end">
+        {metaOf(comment)}
+      </Text>
+      {comment.diffHunk && <Box marginTop={1}>{hunkCode(Code, comment.diffHunk)}</Box>}
+      <Box marginTop={1}>
+        <Markdown text={bodyMarkdownOf(comment.body) || '_(no text)_'} />
       </Box>
-      {comment.diffHunk && hunkCode(Code, comment.diffHunk)}
-      <Markdown text={bodyMarkdownOf(comment.body) || '_(no text)_'} />
-      <Box>
+      <Box marginTop={1} columnGap={2}>
         <Button
           key="address"
           hotkey="a"
@@ -544,9 +563,24 @@ function commentDetail(
           label={isArmed ? 'Address (attached)' : 'Address'}
           onPress={() => actions.address(comment)}
         />
+        {comment.url && <Link href={comment.url} label="Open on GitHub" />}
       </Box>
     </Box>
   )
+}
+
+/**
+ * The one line a comment's card opens with, adding what its row leaves out:
+ * an inline comment's whole path, else who wrote it and what it is.
+ */
+function metaOf(comment: Comment): string {
+  if (comment.path) {
+    return `${comment.path}${comment.line ? `:${comment.line}` : ''}${comment.isResolved ? ' · resolved' : ''}`
+  }
+
+  const verdict = comment.reviewState ? `, ${comment.reviewState.toLowerCase().replace('_', ' ')}` : ''
+
+  return `@${comment.author} · ${KIND[comment.kind]}${verdict}`
 }
 
 /**
@@ -564,7 +598,6 @@ function hunkCode(Code: Table['Code'], diffHunk: string): JSX.Element {
   )
 }
 
-/** A selected row's detail, indented under the row and set off below it. */
 /** The description in order: its text as markdown, each image drawn where it was fetched, else a link to it. */
 function descriptionView(
   { Box, Text, Link, Markdown, Image }: Pick<WithImage, 'Box' | 'Text' | 'Link' | 'Markdown' | 'Image'>,
@@ -604,9 +637,10 @@ function descriptionView(
   )
 }
 
+/** A selected row's detail: a card under the row, framed so it reads apart from the list. */
 function openedRow(Box: Table['Box'], detail: JSX.Element): JSX.Element {
   return (
-    <Box marginLeft={MARKER_COLUMNS} marginBottom={1} flexDirection="column">
+    <Box marginLeft={2} marginBottom={1} borderStyle="round" borderDimColor paddingX={1} flexDirection="column">
       {detail}
     </Box>
   )
