@@ -112,8 +112,61 @@ describe('pane', () => {
     await clock.settle()
     const pane = await $.ui.mount(PANE)
 
-    expect(await pane.findAll({ type: 'Text', text: /\+2 more/ })).toHaveLength(2)
+    expect((await pane.find({ type: 'Button', key: 'more:inline' }))?.text).toBe('2 more')
+    expect((await pane.find({ type: 'Button', key: 'more:checks' }))?.text).toBe('2 more')
+    expect(await pane.find({ type: 'Button', key: 'select:comment:RC0' })).toBeUndefined()
+  })
 
+  test('"N more" shows the rest of a list in place, and "show fewer" caps it again', async ($, on) => {
+    const many = Array.from({ length: 12 }, (_, n) =>
+      inlineComment({ id: `RC${n}`, createdAt: `2026-10-01T10:${String(n).padStart(2, '0')}:00Z` }),
+    )
+    const talk = Array.from({ length: 6 }, (_, n) => ({
+      id: `IC${n}`,
+      author: { login: 'bob' },
+      body: `note ${n}`,
+      createdAt: `2026-10-01T09:${String(n).padStart(2, '0')}:00Z`,
+      url: `https://github.com/o/r/pull/7#c${n}`,
+    }))
+    const answer = prAnswer(
+      { comments: { nodes: talk }, reviewThreads: { nodes: [{ isResolved: false, comments: { nodes: many } }] } },
+      Array.from({ length: 12 }, (_, n) => failing(n)),
+    )
+    const { clock } = world(on, { http: () => json(answer) })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+    const rows = async (prefix: string) =>
+      (await pane.findAll({ type: 'Button' })).filter(button => button.key?.startsWith(prefix)).length
+
+    await pane.press({ key: 'more:inline' })
+    await pane.redraw()
+    expect(await rows('select:comment:RC')).toBe(12)
+    expect((await pane.find({ type: 'Button', key: 'more:inline' }))?.text).toBe('show fewer')
+
+    // A comment that was past the cap now opens under its own row.
+    await pane.press({ key: 'select:comment:RC0' })
+    await pane.redraw()
+    const tree = JSON.stringify(await pane.drawn())
+    expect(tree.indexOf('select:comment:RC0')).toBeLessThan(tree.indexOf('"key":"address"'))
+    expect(tree.indexOf('"key":"address"')).toBeLessThan(tree.indexOf('more:inline'))
+
+    await pane.press({ key: 'more:checks' })
+    await pane.redraw()
+    expect(await rows('select:check:')).toBe(12)
+
+    await pane.press({ key: 'toggle-conversation' })
+    await pane.redraw()
+    expect(await rows('select:comment:IC')).toBe(4)
+    expect((await pane.find({ type: 'Button', key: 'more:conversation' }))?.text).toBe('2 more')
+    await pane.press({ key: 'more:conversation' })
+    await pane.redraw()
+    expect(await rows('select:comment:IC')).toBe(6)
+
+    await pane.press({ key: 'more:inline' })
+    await pane.redraw()
+    expect(await rows('select:comment:RC')).toBe(10)
+    expect((await pane.find({ type: 'Button', key: 'more:inline' }))?.text).toBe('2 more')
   })
 
   test('a picked check pushed past the tenth row opens at the foot', async ($, on) => {

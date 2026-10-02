@@ -27,6 +27,7 @@ function initialView(options: PluginOptions): View {
     armed: [],
     selection: null,
     logs: {},
+    expanded: [],
   }
 }
 
@@ -461,6 +462,7 @@ export const register: Register = (on, options) => {
         columns: e.props.bodyColumns,
         showPassing: view.showPassing,
         showConversation: view.showConversation,
+        expanded: view.expanded,
       },
       {
         select: selection => setView(engine, { selection }),
@@ -472,6 +474,12 @@ export const register: Register = (on, options) => {
         togglePassing: () => setView(engine, { showPassing: !view.showPassing }),
         toggleConversation: () =>
           setView(engine, { showConversation: !view.showConversation }),
+        toggleMore: list =>
+          setView(engine, {
+            expanded: view.expanded.includes(list)
+              ? view.expanded.filter(open => open !== list)
+              : [...view.expanded, list],
+          }),
       },
     )
   })

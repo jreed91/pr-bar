@@ -11,6 +11,9 @@ import { orderedComments, visibleComments } from '../model/unread'
 export const LIST_ROWS = 10
 /** How many rows the conversation list shows: bot summaries pile up there. */
 export const CONVERSATION_ROWS = 4
+/** A capped list the pane can show in full. */
+export type ExpandableList = 'inline' | 'conversation' | 'checks'
+
 /** The marker column every list row starts with: selection then state. */
 const MARKER_COLUMNS = 4
 
@@ -31,6 +34,8 @@ export type PaneModel = {
   showPassing: boolean
   /** List the conversation (summaries, bot reports), not just its count. */
   showConversation: boolean
+  /** The capped lists shown in full. */
+  expanded: readonly ExpandableList[]
 }
 
 export type PaneActions = {
@@ -42,6 +47,8 @@ export type PaneActions = {
   refresh: () => void
   togglePassing: () => void
   toggleConversation: () => void
+  /** Shows a capped list in full, or caps it again. */
+  toggleMore: (list: ExpandableList) => void
 }
 
 type Table = Pick<
@@ -190,12 +197,32 @@ export function paneView(
     )
   // The selected row opens in place, under itself; one the lists do not
   // draw (folded, or past "+N more") opens at the foot instead.
+  const rowsOf = (list: ExpandableList, cap: number) =>
+    model.expanded.includes(list) ? Number.POSITIVE_INFINITY : cap
+  const inlineRows = rowsOf('inline', LIST_ROWS)
+  const conversationRows = rowsOf('conversation', CONVERSATION_ROWS)
+  const checkRows = rowsOf('checks', LIST_ROWS)
+  const moreRow = (list: ExpandableList, total: number, cap: number) =>
+    total > cap && (
+      <Box key={`more:${list}`}>
+        <Box width={MARKER_COLUMNS} flexShrink={0}>
+          <Text dimColor>  {model.expanded.includes(list) ? '▾' : '▸'}</Text>
+        </Box>
+        <Button
+          key={`more:${list}`}
+          plain
+          dimColor
+          label={model.expanded.includes(list) ? 'show fewer' : `${total - cap} more`}
+          onPress={() => actions.toggleMore(list)}
+        />
+      </Box>
+    )
   const drawnComments = [
-    ...inline.slice(0, LIST_ROWS),
-    ...(model.showConversation ? conversation.slice(0, CONVERSATION_ROWS) : []),
+    ...inline.slice(0, inlineRows),
+    ...(model.showConversation ? conversation.slice(0, conversationRows) : []),
   ]
   const isOpenInPlace = selectedCheck
-    ? checks.slice(0, LIST_ROWS).includes(selectedCheck)
+    ? checks.slice(0, checkRows).includes(selectedCheck)
     : selectedComment
       ? drawnComments.some(row => row.comment.id === selectedComment.id)
       : false
@@ -231,24 +258,26 @@ export function paneView(
         { Box, Text, Button },
         'Review comments',
         inline,
-        LIST_ROWS,
+        inlineRows,
         selection,
         rowWidth,
         actions,
         commentDetailOf,
       )}
+      {moreRow('inline', inline.length, LIST_ROWS)}
       {model.showConversation ? (
         commentList(
           { Box, Text, Button },
           'Conversation',
           conversation,
-          CONVERSATION_ROWS,
+          conversationRows,
           selection,
           rowWidth,
           actions,
           commentDetailOf,
         )
       ) : null}
+      {model.showConversation && moreRow('conversation', conversation.length, CONVERSATION_ROWS)}
       {model.showConversation && conversation.length > 0 && (
         <Box>
           <Box width={MARKER_COLUMNS} flexShrink={0}>
@@ -282,7 +311,7 @@ export function paneView(
         <Text bold>Checks ({allChecks.length})</Text>
       </Box>
       {allChecks.length === 0 && <Text dimColor>    none reported</Text>}
-      {checks.slice(0, LIST_ROWS).map(check => (
+      {checks.slice(0, checkRows).map(check => (
         <Box key={`row:check:${check.id}`} flexDirection="column">
           <Box>
             <Box width={MARKER_COLUMNS} flexShrink={0}>
@@ -302,9 +331,7 @@ export function paneView(
           {check === selectedCheck && openedRow(Box, checkDetailOf(check))}
         </Box>
       ))}
-      {checks.length > LIST_ROWS && (
-        <Text dimColor>    +{checks.length - LIST_ROWS} more</Text>
-      )}
+      {moreRow('checks', checks.length, LIST_ROWS)}
       {quiet.length > 0 && (
         <Box>
           <Box width={MARKER_COLUMNS} flexShrink={0}>
@@ -374,7 +401,6 @@ function commentList(
             openedRow(Box, detailOf(comment))}
         </Box>
       ))}
-      {rows.length > limit && <Text dimColor>    +{rows.length - limit} more</Text>}
     </Box>
   )
 }
