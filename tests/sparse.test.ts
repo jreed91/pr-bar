@@ -25,6 +25,7 @@ describe('a sparse GraphQL answer', () => {
         comments: [],
         body: '',
         imageSrcs: [],
+        stack: [],
       },
     })
   })

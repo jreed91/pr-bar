@@ -1,6 +1,6 @@
 import type { Elements } from 'claude-code'
 
-import type { Check, Comment, DescriptionImage, Problem, PullRequest, Selection, Snapshot } from '../../types'
+import type { Check, Comment, DescriptionImage, Problem, PullRequest, Selection, Snapshot, StackEntry } from '../../types'
 import { ageOf } from '../model/cadence'
 import { descriptionPartsOf, imageBoxOf, type DescriptionPart } from '../model/description'
 import { rollupOf } from '../model/rollup'
@@ -76,6 +76,11 @@ const ICON: Record<Check['state'], { glyph: string; color: string }> = {
   pending: { glyph: '◌', color: 'warning' },
   pass: { glyph: '✓', color: 'success' },
   skip: { glyph: '–', color: 'inactive' },
+}
+
+const STACK_ICON: Record<StackEntry['ci'], { glyph: string; color: string }> = {
+  ...ICON,
+  none: ICON.skip,
 }
 
 const KIND: Record<Comment['kind'], string> = {
@@ -300,6 +305,8 @@ export function paneView(
         </Box>
       </Box>
 
+      {pr.stack.length > 0 && stackList({ Box, Text, Link }, pr.stack, pr.number, rowWidth)}
+
       {description.length > 0 && (
         <Box marginTop={1} flexDirection="column">
           <Box>
@@ -459,6 +466,56 @@ export function paneView(
           )}
         </Box>
       )}
+    </Box>
+  )
+}
+
+/**
+ * The stack the PR sits in, top first as the branches pile up, each with
+ * its CI and ending on the branch it is based on; the others link to their
+ * PR, the current one is marked.
+ */
+function stackList(
+  { Box, Text, Link }: Pick<Table, 'Box' | 'Text' | 'Link'>,
+  stack: readonly StackEntry[],
+  current: number,
+  width: number,
+): JSX.Element {
+  const position = stack.findIndex(pr => pr.number === current) + 1
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text bold>
+        Stack ({position}/{stack.length})
+      </Text>
+      {[...stack].reverse().map((pr, index) => {
+        const label = fit(`#${pr.number} ${pr.title}${pr.isDraft ? ' · draft' : ''}`, width)
+
+        return (
+          <Box key={`row:stack:${pr.number}`} flexDirection="column">
+            <Box>
+              <Box width={MARKER_COLUMNS} flexShrink={0}>
+                <Text color={STACK_ICON[pr.ci].color}>
+                  {pr.number === current ? '❯' : ' '} {STACK_ICON[pr.ci].glyph}
+                </Text>
+              </Box>
+              {pr.number === current ? (
+                <Text bold wrap="truncate-end">
+                  {label}
+                </Text>
+              ) : (
+                <Link href={pr.url} label={label} />
+              )}
+            </Box>
+            {index === stack.length - 1 && (
+              <Text dimColor wrap="truncate-end">
+                {'    '}
+                {pr.baseRef}
+              </Text>
+            )}
+          </Box>
+        )
+      })}
     </Box>
   )
 }
