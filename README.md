@@ -50,12 +50,18 @@ Set these in `/config` (or `/plugin configure pr-bar@jreed91`):
 
 Everything the mod reaches, so you can decide whether to trust it (`claude plugin validate .` lists the same):
 
-- **Reads** the session's git checkout: `.git/HEAD` (or a worktree's `.git` pointer file) and the `origin` remote URL. Nothing else on disk, except the description images it saved itself (below).
-- **Reads your GitHub token** from, in order, the `GH_TOKEN` or `GITHUB_TOKEN` environment variable, the output of `gh auth token --hostname github.com` (the one command it runs for this), or the secret `githubToken` setting. The token is sent only to `api.github.com`.
-- **Sends** one GraphQL request to `https://api.github.com/graphql` per poll, naming the repository and branch. When you press Attach to prompt or Load log on a GitHub Actions check, it also asks `https://api.github.com/repos/<owner>/<repo>/actions/jobs/<id>/logs` and follows its redirect to GitHub's log storage (no token is sent there).
-- **Fetches description images** only when you open the Description: up to six, each once a session, with `curl` (at most 2 MiB, 20 s each) into a folder `mktemp -d` makes, then reads them back. It fetches the addresses in GitHub's rendering of the description: GitHub's own image hosts, short-lived signed links for a private repo. No token is sent.
-- **Keeps** one value per PR in the plugin's own store: when you last pressed Mark read.
-- **Adds to your prompt** only what you attach with Attach to prompt, on the next prompt you send, as context Claude reads. Nothing is submitted for you.
+- **Environment variables**: it reads `GH_TOKEN`, then `GITHUB_TOKEN`, for a GitHub token to ask GitHub about the PR with. No other variable is read. The token is sent only to `api.github.com`, in the `Authorization` header.
+- **Programs it runs**, each with fixed arguments, never through a shell:
+  - `gh auth token --hostname github.com`, only when neither variable is set, to reuse the token the GitHub CLI already holds. If it is not installed or not signed in, the secret `githubToken` setting is used instead.
+  - `mktemp -d`, once a session, to make a private folder for description images.
+  - `curl -sSfL --max-time 20 --max-filesize 2097152 -o <that folder>/<n> <image address>`, only when you open the Description, for up to six images. No token is sent.
+- **Hosts it contacts**:
+  - `https://api.github.com/graphql`: one GraphQL request per poll (every 20 s while checks run, 90 s otherwise), naming the repository and branch.
+  - `https://api.github.com/repos/<owner>/<repo>/actions/jobs/<id>/logs`, only when you press Attach to prompt or Load log on a GitHub Actions check. It follows the redirect to GitHub's log storage without the token.
+  - The image addresses in GitHub's rendering of the description (GitHub's own image hosts; short-lived signed links for a private repo), with `curl` as above.
+- **Local data it reads**: the session's git checkout (`.git/HEAD`, or a worktree's `.git` pointer file) for the branch, the `origin` remote for the repository, and the images it saved itself. Nothing else on disk, and none of it is sent anywhere except the repository and branch names above.
+- **The conversation**: it hooks `prompt.submit` only to add what you attached (a check's log tail, a comment with its code) to the next prompt you send, as context Claude reads, and to skip prompts that a background task or another session sent. It does not read, keep or send your prompt text. Nothing from the conversation leaves your machine through the mod; the attachments go to Claude with your prompt, like anything you type.
+- **Stored**: one value per PR in the plugin's own store, when you last pressed Mark read.
 
 Nothing goes anywhere else: no telemetry, no third-party hosts.
 
