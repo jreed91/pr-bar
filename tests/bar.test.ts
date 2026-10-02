@@ -113,6 +113,19 @@ describe('bar', () => {
     }
   })
 
+  for (const [typed, isFull] of [[' Full ', true], ['wide', false]] as const) {
+    test(`a typed layout of "${typed}" draws the ${isFull ? 'full' : 'compact'} bar`, { options: { barLayout: typed } }, async ($, on) => {
+      const { clock } = world(on, graphql())
+      await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+      await clock.settle()
+
+      const ui = await $.ui.mount({ plugin: 'pr-bar', surface: 'terminal', ...BAR } as never)
+
+      expect(Boolean(await ui.find({ type: 'Button', key: 'mark-read' }))).toBe(isFull)
+      await ui.unmount()
+    })
+  }
+
   test('Mark read clears the count and is kept per PR', { options: { barLayout: 'full' } }, async ($, on) => {
     const store: Record<string, unknown> = {}
     const { clock } = world(on, graphql(), store)
