@@ -248,3 +248,28 @@ describe('closing the open row', () => {
     expect(await pane.find({ type: 'Button', key: 'fix-ci' })).toBeUndefined()
   })
 })
+
+describe('closing an open conversation comment', () => {
+  test('works the same as an inline one, and the section folds with its own row', async ($, on) => {
+    const talk = { id: 'IC1', author: { login: 'bob' }, body: 'Looks good overall', createdAt: '2026-10-01T11:30:00Z', url: 'https://github.com/o/r/pull/7#c1' }
+    const { clock } = world(on, { http: () => json(prAnswer({ comments: { nodes: [talk] }, ...noComments })) })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+    await pane.press({ key: 'toggle-conversation' })
+    await pane.redraw()
+
+    // Shown, the unread conversation comment is the one open; pressing it closes it.
+    expect(await pane.find({ type: 'Button', key: 'address' })).toBeDefined()
+    await pane.press({ key: 'select:comment:IC1' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Button', key: 'address' })).toBeUndefined()
+    await pane.press({ key: 'select:comment:IC1' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Button', key: 'address' })).toBeDefined()
+
+    await pane.press({ key: 'toggle-conversation' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Button', key: 'select:comment:IC1' })).toBeUndefined()
+  })
+})
