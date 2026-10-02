@@ -39,7 +39,7 @@ describe('a sparse GraphQL answer', () => {
       reviews: { nodes: [{ state: 'APPROVED' }, { state: 'COMMENTED' }] },
       reviewThreads: { nodes: [{ comments: { nodes: [{}] } }] },
     }] } } }))
-    const empty = { id: '', author: 'ghost', body: '', createdAt: 0, url: '', path: null, line: null, diffHunk: null }
+    const empty = { id: '', author: 'ghost', body: '', createdAt: 0, url: '', path: null, line: null, diffHunk: null, isResolved: false }
 
     expect(outcome.kind === 'ok' && outcome.pr?.comments).toEqual([
       { ...empty, kind: 'conversation', reviewState: null },

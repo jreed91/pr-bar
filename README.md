@@ -26,6 +26,7 @@ Set these in `/config` (or `/plugin configure pr-bar@jreed91`):
 | Bar layout | `compact` | `full` adds a second row: the failing check names, each attachment, and Details / Mark read / Refresh buttons |
 | List passing checks | off | Lists passing and skipped checks in the pane instead of one folded line |
 | Show conversation comments | off | Lists conversation comments and review summaries in the pane and counts them in the bar; inline review comments always show |
+| Show resolved threads | off | Lists the comments on resolved review threads in the pane, dimmed and after the open ones, instead of one folded `N resolved` line. They never count as new |
 | Open the pane for a new PR | on | Opens the pane when a PR is opened for your branch during the session, for example by `gh pr create`. Once per PR; a PR that was already open doesn't open it |
 | GitHub token | none | Used only when no other token is found (see below) |
 
@@ -34,7 +35,7 @@ Set these in `/config` (or `/plugin configure pr-bar@jreed91`):
 - Repo and branch come from `.git/HEAD` and the `origin` remote. The bar hides outside a github.com checkout or on a detached HEAD.
 - Token, first found wins: `GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token`, then the plugin's secret `githubToken` setting (`/config`).
 - One GraphQL request per poll: every 20s while a check is pending, 90s otherwise, 5 min after a rate limit or network error. A `git push`, `git checkout`/`switch` or `gh pr …` run by Claude refreshes right away, and so does a branch switch (HEAD is read every 2s, locally).
-- New comments are inline review comments newer than your last Mark read for that PR (kept across sessions), excluding your own; bots count. With the conversation setting on, conversation comments and review summaries count too. Resolved threads are left out.
+- New comments are inline review comments newer than your last Mark read for that PR (kept across sessions), excluding your own; bots count. With the conversation setting on, conversation comments and review summaries count too. Resolved threads never count; the pane folds them into one line you can open.
 
 ## What it reads, runs and sends
 

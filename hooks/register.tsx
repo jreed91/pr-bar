@@ -20,6 +20,7 @@ function initialView(options: PluginOptions): View {
   return {
     showPassing: options['showPassingChecks'] === true,
     showConversation: options['showConversation'] === true,
+    showResolved: options['showResolved'] === true,
     repo: null,
     snapshot: null,
     problem: null,
@@ -462,6 +463,7 @@ export const register: Register = (on, options) => {
         columns: e.props.bodyColumns,
         showPassing: view.showPassing,
         showConversation: view.showConversation,
+        showResolved: view.showResolved,
         expanded: view.expanded,
       },
       {
@@ -474,6 +476,7 @@ export const register: Register = (on, options) => {
         togglePassing: () => setView(engine, { showPassing: !view.showPassing }),
         toggleConversation: () =>
           setView(engine, { showConversation: !view.showConversation }),
+        toggleResolved: () => setView(engine, { showResolved: !view.showResolved }),
         toggleMore: list =>
           setView(engine, {
             expanded: view.expanded.includes(list)

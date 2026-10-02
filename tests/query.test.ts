@@ -53,9 +53,10 @@ describe('parseResponse', () => {
       ['docs', 'skip', null],
       ['vercel', 'pass', null],
     ])
-    // The empty COMMENTED review and the resolved thread are left out.
-    expect(pr.comments.map(comment => comment.id)).toEqual(['RC1', 'IC1', 'R2'])
-    expect(pr.comments[0]).toMatchObject({ kind: 'review-comment', path: 'a.ts', line: 4 })
+    // The empty COMMENTED review is left out; the resolved thread is kept, marked.
+    expect(pr.comments.map(comment => comment.id)).toEqual(['RC2', 'RC1', 'IC1', 'R2'])
+    expect(pr.comments[0]).toMatchObject({ kind: 'review-comment', path: 'b.ts', isResolved: true })
+    expect(pr.comments[1]).toMatchObject({ kind: 'review-comment', path: 'a.ts', line: 4, isResolved: false })
   })
 
   test('no open PR for the branch', async () => {

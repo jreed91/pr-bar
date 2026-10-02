@@ -273,3 +273,45 @@ describe('closing an open conversation comment', () => {
     expect(await pane.find({ type: 'Button', key: 'select:comment:IC1' })).toBeUndefined()
   })
 })
+
+describe('resolved threads', () => {
+  const threads = {
+    reviewThreads: { nodes: [
+      { isResolved: false, comments: { nodes: [inlineComment()] } },
+      { isResolved: true, comments: { nodes: [inlineComment({ id: 'RC9', body: 'Settled', createdAt: '2026-10-01T12:00:00Z' })] } },
+    ] },
+  }
+
+  test('fold into one row that lists them last, dimmed and never new', async ($, on) => {
+    const pane = await drawn($, on, prAnswer(threads), PANE)
+
+    expect(await pane.find({ type: 'Text', text: 'Review comments (1, 1 new)' })).toBeDefined()
+    expect(await pane.find({ type: 'Button', key: 'select:comment:RC9' })).toBeUndefined()
+    expect((await pane.find({ type: 'Button', key: 'toggle-resolved' }))?.text).toBe('1 resolved')
+
+    await pane.press({ key: 'toggle-resolved' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Text', text: 'Review comments (2, 1 new)' })).toBeDefined()
+    expect((await pane.find({ type: 'Button', key: 'toggle-resolved' }))?.text).toBe('hide 1 resolved')
+    const keys = (await pane.findAll({ type: 'Button' })).map(button => button.key).filter(key => key?.startsWith('select:comment:'))
+    expect(keys).toEqual(['select:comment:RC1', 'select:comment:RC9'])
+    expect(await pane.find({ type: 'Text', text: /✓/ })).toBeDefined()
+
+    await pane.press({ key: 'toggle-resolved' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Button', key: 'select:comment:RC9' })).toBeUndefined()
+  })
+
+  test('the setting lists them from the start', { options: { showResolved: true } }, async ($, on) => {
+    const pane = await drawn($, on, prAnswer(threads), PANE)
+
+    expect(await pane.find({ type: 'Button', key: 'select:comment:RC9' })).toBeDefined()
+  })
+
+  test('do not count in the bar', async ($, on) => {
+    const resolvedOnly = { reviewThreads: { nodes: [threads.reviewThreads.nodes[1]] } }
+    const bar = await drawn($, on, prAnswer(resolvedOnly), BAR)
+
+    expect(await bar.find({ type: 'Text', text: /💬/ })).toBeUndefined()
+  })
+})

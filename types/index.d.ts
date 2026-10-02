@@ -25,6 +25,8 @@ export type Comment = {
   diffHunk: string | null
   /** For a review summary, its verdict (APPROVED, CHANGES_REQUESTED, COMMENTED). */
   reviewState: string | null
+  /** An inline comment on a thread marked resolved. */
+  isResolved: boolean
 }
 
 export type PullRequest = {
