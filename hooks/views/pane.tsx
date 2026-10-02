@@ -5,7 +5,7 @@ import { ageOf } from '../model/cadence'
 import { descriptionPartsOf, imageBoxOf, type DescriptionPart } from '../model/description'
 import { rollupOf } from '../model/rollup'
 import { HUNK_ROWS, hunkTailOf, printableTailOf } from '../model/hunk'
-import { bodyMarkdownOf, commentRowOf, fit } from '../model/preview'
+import { bodyMarkdownOf, boundedMarkdownOf, commentRowOf, fit } from '../model/preview'
 import { orderedComments, visibleComments } from '../model/unread'
 
 /** How many rows the checks and review-comment lists show before "+N more". */
@@ -52,6 +52,8 @@ export type PaneActions = {
   loadLog: (check: Check) => void
   fixCi: (check: Check) => void
   address: (comment: Comment) => void
+  /** Attaches these comments (the unread ones) to the next prompt. */
+  attachUnread: (comments: readonly Comment[]) => void
   markRead: () => void
   refresh: () => void
   togglePassing: () => void
@@ -204,6 +206,9 @@ export function paneView(
     ...(model.showResolved ? resolved : []),
   ]
   const conversation = comments.filter(row => row.comment.kind !== 'review-comment')
+  // What "attach all" takes: every unread comment the pane lists or counts.
+  const unreadRows = [...inline, ...(model.showConversation ? conversation : [])].filter(row => row.isUnread)
+  const unreadCount = unreadRows.length
   const rowWidth = Math.max(20, model.columns - MARKER_COLUMNS - 1)
   const description = descriptionPartsOf(pr.body)
 
@@ -326,6 +331,20 @@ export function paneView(
         rowWidth,
         actions,
         commentDetailOf,
+        unreadCount > 0 && (
+          <Button
+            key="attach-unread"
+            hotkey="u"
+            plain
+            dimColor
+            label={unreadCount === 1 ? 'attach the unread one to prompt' : `attach all ${unreadCount} unread to prompt`}
+            onPress={() =>
+              actions.attachUnread(
+                unreadRows.map(row => row.comment).sort((a, b) => a.createdAt - b.createdAt),
+              )
+            }
+          />
+        ),
       )}
       {moreRow('inline', inline.length, LIST_ROWS)}
       {resolved.length > 0 && (
@@ -457,15 +476,19 @@ function commentList(
   width: number,
   actions: PaneActions,
   detailOf: (comment: Comment) => JSX.Element,
+  action: JSX.Element | false = false,
 ): JSX.Element {
   const unread = rows.filter(row => row.isUnread).length
 
   return (
     <Box flexDirection="column" marginTop={1}>
-      <Text bold>
-        {title} ({rows.length}
-        {unread > 0 ? `, ${unread} new` : ''})
-      </Text>
+      <Box columnGap={2}>
+        <Text bold>
+          {title} ({rows.length}
+          {unread > 0 ? `, ${unread} new` : ''})
+        </Text>
+        {action}
+      </Box>
       {rows.length === 0 && <Text dimColor>    none</Text>}
       {rows.slice(0, limit).map(({ comment, isUnread }) => (
         <Box key={`row:comment:${comment.id}`} flexDirection="column">
@@ -553,7 +576,7 @@ function commentDetail(
       </Text>
       {comment.diffHunk && <Box marginTop={1}>{hunkCode(Code, comment.diffHunk)}</Box>}
       <Box marginTop={1}>
-        <Markdown text={bodyMarkdownOf(comment.body) || '_(no text)_'} />
+        <Markdown text={boundedMarkdownOf(bodyMarkdownOf(comment.body)) || '_(no text)_'} />
       </Box>
       <Box marginTop={1} columnGap={2}>
         <Button
@@ -609,7 +632,7 @@ function descriptionView(
     <Box flexDirection="column">
       {parts.map((part, index) => {
         if (part.kind === 'text') {
-          return <Markdown key={`description:${index}`} text={part.markdown} />
+          return <Markdown key={`description:${index}`} text={boundedMarkdownOf(part.markdown)} />
         }
 
         const image = images[part.src]

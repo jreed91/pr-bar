@@ -149,3 +149,13 @@ export function commentRowOf(comment: Comment, width: number): string {
 
   return fit(preview ? `${head}  ${preview}` : head, width)
 }
+
+/** The most text one `Markdown` element takes; the pane refuses the whole tree past 10,000. */
+export const MARKDOWN_MAX_CHARS = 9_000
+
+/** `text` cut to what `Markdown` draws, saying so where it stops. */
+export function boundedMarkdownOf(text: string): string {
+  return text.length <= MARKDOWN_MAX_CHARS
+    ? text
+    : `${text.slice(0, MARKDOWN_MAX_CHARS)}\n\n_… cut here; open it on GitHub for the rest._`
+}

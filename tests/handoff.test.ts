@@ -305,3 +305,126 @@ describe('sending what is attached', () => {
     expect(logs).toHaveLength(1)
   })
 })
+
+describe('attach all unread', () => {
+  const threads = (...comments: Record<string, unknown>[]) => ({
+    reviewThreads: { nodes: comments.map(comment => ({ isResolved: false, comments: { nodes: [comment] } })) },
+  })
+  const talk = { id: 'IC1', author: { login: 'bob' }, body: 'Ship it after the rename', createdAt: '2026-10-01T11:50:00Z', url: 'https://github.com/o/r/pull/7#c1' }
+  const sent = async ($: Engine, on: Parameters<typeof world>[0]) => {
+    const submitted: (readonly string[] | undefined)[] = []
+    on('prompt.submit', (_$, e) => {
+      submitted.push(e.context)
+      return { text: e.text, context: e.context }
+    })
+    return async () => {
+      await $.prompt.submit({ text: 'address all of these' } as never)
+      return submitted.at(-1) ?? []
+    }
+  }
+
+  test('one press attaches every unread comment, oldest first, once', async ($, on) => {
+    const answer = prAnswer({
+      comments: { nodes: [talk] },
+      ...threads(
+        inlineComment({ id: 'RC1', body: 'Cap the retries', createdAt: '2026-10-01T11:20:00Z' }),
+        inlineComment({ id: 'RC2', body: 'Add jitter', path: 'src/backoff.ts', createdAt: '2026-10-01T11:10:00Z' }),
+        inlineComment({ id: 'RC3', body: 'My own note', author: { login: 'me' } }),
+      ),
+    })
+    const { clock, toasts } = world(on, { http: () => json(answer) })
+    const submit = await sent($, on)
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+
+    // The folded conversation is not taken; your own comment is never unread.
+    expect((await pane.find({ type: 'Button', key: 'attach-unread' }))?.text).toBe('attach all 2 unread to prompt')
+    await pane.press({ key: 'attach-unread' })
+    await clock.settle()
+    expect(toasts).toEqual(['Attached 2 unread comments to your next prompt'])
+
+    await pane.press({ key: 'attach-unread' })
+    await clock.settle()
+    expect(toasts[1]).toBe('Attached 0 unread comments to your next prompt')
+
+    const context = await submit()
+    expect(context).toHaveLength(2)
+    expect(context[0]).toContain('Add jitter')
+    expect(context[1]).toContain('Cap the retries')
+  })
+
+  test('with the conversation shown it is taken too', { options: { showConversation: true } }, async ($, on) => {
+    const answer = prAnswer({ comments: { nodes: [talk] }, ...threads(inlineComment()) })
+    const { clock, toasts } = world(on, { http: () => json(answer) })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+
+    await pane.press({ key: 'attach-unread' })
+    await clock.settle()
+    expect(toasts).toEqual(['Attached 2 unread comments to your next prompt'])
+  })
+
+  test('one unread comment says so', async ($, on) => {
+    const { clock, toasts } = world(on)
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+
+    expect((await pane.find({ type: 'Button', key: 'attach-unread' }))?.text).toBe('attach the unread one to prompt')
+    await pane.press({ key: 'attach-unread' })
+    await clock.settle()
+    expect(toasts).toEqual(['Attached 1 unread comment to your next prompt'])
+  })
+
+  const long = (id: string, minute: number) =>
+    inlineComment({ id, body: 'x'.repeat(18_000), createdAt: `2026-10-01T11:${String(minute).padStart(2, '0')}:00Z` })
+
+  test('what would not fit a prompt is left out and counted', async ($, on) => {
+    const { clock, toasts } = world(on, { http: () => json(prAnswer(threads(long('L1', 1), long('L2', 2), long('L3', 3)))) })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+
+    await pane.press({ key: 'attach-unread' })
+    await clock.settle()
+    expect(toasts).toEqual(['Attached 2 unread comments to your next prompt; 1 did not fit and was left out'])
+    // A body past what the pane draws is cut, not refused.
+    expect((await pane.find({ type: 'Markdown' }))?.props).toMatchObject({ text: expect.stringContaining('cut here; open it on GitHub') })
+  })
+
+  test('two left out are counted together', async ($, on) => {
+    const { clock, toasts } = world(on, { http: () => json(prAnswer(threads(long('L1', 1), long('L2', 2), long('L3', 3), long('L4', 4)))) })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+
+    await pane.press({ key: 'attach-unread' })
+    await clock.settle()
+    expect(toasts[0]).toBe('Attached 2 unread comments to your next prompt; 2 did not fit and were left out')
+  })
+
+  test('nothing unread, no button; pressed after the PR went away, nothing', async ($, on) => {
+    let answer: unknown = prAnswer()
+    const { clock, toasts } = world(on, { http: () => json(answer) })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+
+    answer = NO_PR
+    await pane.press({ key: 'refresh' })
+    await clock.advance(0)
+    await clock.settle()
+    await pane.press({ key: 'attach-unread' })
+    await clock.settle()
+    expect(toasts).toHaveLength(0)
+
+    answer = prAnswer({ reviewThreads: { nodes: [] } })
+    await pane.press({ key: 'refresh' })
+    await clock.advance(0)
+    await clock.settle()
+    await pane.redraw()
+    expect(await pane.find({ type: 'Button', key: 'attach-unread' })).toBeUndefined()
+  })
+})
