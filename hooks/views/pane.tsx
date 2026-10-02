@@ -91,6 +91,10 @@ export function effectiveSelection(
   viewer: string,
   showConversation: boolean,
 ): Selection {
+  if (selection?.kind === 'none') {
+    return null
+  }
+
   if (
     selection &&
     (selection.kind === 'check'
@@ -325,7 +329,9 @@ export function paneView(
               plain
               dimColor={check.state === 'pass' || check.state === 'skip'}
               label={fit(check.name, rowWidth)}
-              onPress={() => actions.select({ kind: 'check', id: check.id })}
+              onPress={() =>
+                actions.select(check === selectedCheck ? { kind: 'none' } : { kind: 'check', id: check.id })
+              }
             />
           </Box>
           {check === selectedCheck && openedRow(Box, checkDetailOf(check))}
@@ -351,7 +357,7 @@ export function paneView(
         <Box marginTop={1} flexDirection="column">
           {selectedCheck && checkDetailOf(selectedCheck)}
           {selectedComment && commentDetailOf(selectedComment)}
-          {!selectedCheck && !selectedComment && (
+          {!selectedCheck && !selectedComment && model.selection?.kind !== 'none' && (
             <Text dimColor>Nothing failing and nothing unread. Pick a row to see it.</Text>
           )}
         </Box>
@@ -359,6 +365,10 @@ export function paneView(
     </Box>
   )
 }
+
+/** Whether `comment` is the open row. */
+const isOpen = (selection: Selection, comment: Comment): boolean =>
+  selection?.kind === 'comment' && selection.id === comment.id
 
 function commentList(
   { Box, Text, Button }: Pick<Table, 'Box' | 'Text' | 'Button'>,
@@ -384,7 +394,7 @@ function commentList(
           <Box>
             <Box width={MARKER_COLUMNS} flexShrink={0}>
               <Text color={isUnread ? 'warning' : 'inactive'}>
-                {selection?.kind === 'comment' && selection.id === comment.id ? '❯' : ' '}{' '}
+                {isOpen(selection, comment) ? '❯' : ' '}{' '}
                 {isUnread ? '●' : '·'}
               </Text>
             </Box>
@@ -393,12 +403,14 @@ function commentList(
               plain
               dimColor={!isUnread}
               label={commentRowOf(comment, width)}
-              onPress={() => actions.select({ kind: 'comment', id: comment.id })}
+              onPress={() =>
+                actions.select(
+                  isOpen(selection, comment) ? { kind: 'none' } : { kind: 'comment', id: comment.id },
+                )
+              }
             />
           </Box>
-          {selection?.kind === 'comment' &&
-            selection.id === comment.id &&
-            openedRow(Box, detailOf(comment))}
+          {isOpen(selection, comment) && openedRow(Box, detailOf(comment))}
         </Box>
       ))}
     </Box>

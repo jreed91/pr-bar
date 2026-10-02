@@ -220,3 +220,31 @@ describe('pane', () => {
     expect(await pane.find({ type: 'Text', text: /^inline · src\/app\.ts$/ })).toBeDefined()
   })
 })
+
+describe('closing the open row', () => {
+  test('pressing the open comment or check closes it, and pressing again opens it', async ($, on) => {
+    const { clock } = world(on, { http: () => json(prAnswer()) })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+
+    // It opens on the unread comment; pressing it closes it, and nothing takes its place.
+    expect(await pane.find({ type: 'Button', key: 'address' })).toBeDefined()
+    await pane.press({ key: 'select:comment:RC1' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Button', key: 'address' })).toBeUndefined()
+    expect(await pane.find({ type: 'Button', key: 'fix-ci' })).toBeUndefined()
+    expect(await pane.find({ type: 'Text', text: /Nothing failing/ })).toBeUndefined()
+
+    await pane.press({ key: 'select:comment:RC1' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Button', key: 'address' })).toBeDefined()
+
+    await pane.press({ key: 'select:check:CR1' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Button', key: 'fix-ci' })).toBeDefined()
+    await pane.press({ key: 'select:check:CR1' })
+    await pane.redraw()
+    expect(await pane.find({ type: 'Button', key: 'fix-ci' })).toBeUndefined()
+  })
+})
