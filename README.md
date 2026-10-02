@@ -21,7 +21,7 @@ It starts quiet and you opt into more:
 
 Letter keys work only while the bar or the pane holds the focus; while you are typing in the prompt they type, so nothing you write ever presses a button.
 
-- **Focus**: ctrl+x tab moves the focus from the prompt to the bar. `/pr`, or `d` on the bar, opens the pane already focused. Esc closes the pane and returns you to the prompt.
+- **Focus**: ctrl+x, then Tab (two presses: let go of ctrl+x first) moves the focus from the prompt to the bar; it is Claude Code's `abovePrompt:focus` binding, which `~/.claude/keybindings.json` can move to another key. `/pr`, or `d` on the bar, opens the pane already focused. Esc closes the pane and returns you to the prompt.
 - **Move**: Tab or the arrow keys move between rows and buttons; Enter presses the one under the focus (opens a row, expands a folded line).
 - **Bar**: `d` details (opens the pane), `m` mark read, `r` refresh (or retry, after an error).
 - **Pane**: `u` attach every unread comment, `a` attach the open comment, `f` attach the open failing check, `l` load its log, `m` mark read, `r` refresh.
