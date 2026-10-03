@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The dependabot-version workflow starts CI this way after it pushes a bump.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,9 +23,9 @@ jobs:
     name: Lint, type-check, validate, test, coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -54,7 +56,7 @@ jobs:
 
       - name: Upload the coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage/
@@ -62,14 +64,18 @@ jobs:
 
   version:
     name: Version bumped
-    # Dependabot's dependency PRs don't ship a plugin release, so they skip this.
-    if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
+    # Dependabot's own pushes aren't bumped: the dependabot-version workflow bumps
+    # its npm PRs, then dispatches CI on the branch, which checks against main.
+    # Its GitHub Actions PRs don't change the plugin, so they skip this.
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]')
+      || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Fetch the base branch
-        run: git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+        run: git fetch --no-tags --depth=1 origin "${{ github.base_ref || 'main' }}"
 
       - name: Version is higher than the base branch's
-        run: node scripts/version.mjs "origin/${{ github.base_ref }}"
+        run: node scripts/version.mjs "origin/${{ github.base_ref || 'main' }}"
