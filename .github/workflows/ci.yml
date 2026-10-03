@@ -62,7 +62,8 @@ jobs:
 
   version:
     name: Version bumped
-    if: github.event_name == 'pull_request'
+    # Dependabot's dependency PRs don't ship a plugin release, so they skip this.
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
