@@ -1,0 +1,84 @@
+name: Dependabot version bump
+
+# Dependabot can't bump the plugin version, so this does it for its PRs: when
+# Dependabot opens or updates one, and again whenever main moves past it.
+# Pushes made with GITHUB_TOKEN don't start CI, so it dispatches CI on the branch.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: write
+  pull-requests: read
+
+concurrency:
+  group: dependabot-version-${{ github.head_ref || github.ref }}
+
+jobs:
+  bump:
+    name: Bump the version on Dependabot PRs
+    if: github.event_name == 'push' || (github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    steps:
+      # Main, not the PR, so the bump script is always main's.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Bump, push and start CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          if [ -n "$PR_BRANCH" ]; then
+            branches="$PR_BRANCH"
+          else
+            branches=$(gh pr list --base main --state open --author app/dependabot --json headRefName --jq '.[].headRefName')
+          fi
+
+          for branch in $branches; do
+            echo "::group::$branch"
+            git fetch --no-tags origin "$branch"
+            dir=$(mktemp -d)
+            git worktree add --detach "$dir" FETCH_HEAD
+            cd "$dir"
+
+            # Already past main's version: nothing to do.
+            if node "$GITHUB_WORKSPACE/scripts/version.mjs" origin/main 2>/dev/null; then
+              cd "$GITHUB_WORKSPACE"; git worktree remove --force "$dir"; echo "::endgroup::"; continue
+            fi
+
+            # Bring main in first. The version files are the only conflicts this
+            # resolves (main's side, bumped below); anything else waits for a person.
+            if ! git merge --no-edit origin/main; then
+              conflicts=$(git diff --name-only --diff-filter=U)
+              if [ "$(echo "$conflicts" | grep -cvE '^\.claude-plugin/(plugin|marketplace)\.json$')" -ne 0 ]; then
+                echo "::warning::$branch conflicts with main beyond the version files; not bumping it."
+                git merge --abort
+                cd "$GITHUB_WORKSPACE"; git worktree remove --force "$dir"; echo "::endgroup::"; continue
+              fi
+              git checkout --theirs .claude-plugin/plugin.json .claude-plugin/marketplace.json
+              git add .claude-plugin/plugin.json .claude-plugin/marketplace.json
+              git commit --no-edit
+            fi
+
+            node "$GITHUB_WORKSPACE/scripts/bump.mjs" origin/main
+            node "$GITHUB_WORKSPACE/scripts/version.mjs" origin/main
+            git commit -am "Bump the plugin version to $(jq -r .version .claude-plugin/plugin.json)"
+            # GITHUB_TOKEN can't push a merge that brings in main's workflow changes.
+            if git push origin "HEAD:refs/heads/$branch"; then
+              gh workflow run ci.yml --ref "$branch"
+            else
+              echo "::warning::Couldn't push the bump to $branch; ask Dependabot to rebase it (@dependabot rebase)."
+            fi
+
+            cd "$GITHUB_WORKSPACE"; git worktree remove --force "$dir"
+            echo "::endgroup::"
+          done

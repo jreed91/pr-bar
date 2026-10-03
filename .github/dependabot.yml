@@ -1,5 +1,5 @@
-# Dependabot's PRs skip the "Version bumped" CI job (see ci.yml): a dependency
-# update alone doesn't ship a new plugin version.
+# Dependabot can't bump the plugin version; the dependabot-version workflow
+# does it on its PRs.
 version: 2
 updates:
   - package-ecosystem: npm

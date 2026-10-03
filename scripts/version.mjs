@@ -3,13 +3,14 @@
 // must also agree.
 //
 // Usage: node scripts/version.mjs <base ref>   (CI passes origin/<base branch>)
+// Checks the checkout it runs from, so the dependabot-version workflow can run
+// main's copy against a PR's worktree.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const ROOT = process.cwd()
 const PLUGIN = '.claude-plugin/plugin.json'
 const MARKETPLACE = '.claude-plugin/marketplace.json'
 
