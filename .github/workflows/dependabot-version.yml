@@ -1,7 +1,8 @@
 name: Dependabot version bump
 
-# Dependabot can't bump the plugin version, so this does it for its PRs: when
-# Dependabot opens or updates one, and again whenever main moves past it.
+# Dependabot can't bump the plugin version, so this does it for its npm PRs
+# (GitHub Actions updates don't ship in the plugin, so they skip the version
+# check): when Dependabot opens or updates one, and again whenever main moves past it.
 # Pushes made with GITHUB_TOKEN don't start CI, so it dispatches CI on the branch.
 
 on:
@@ -20,7 +21,10 @@ concurrency:
 jobs:
   bump:
     name: Bump the version on Dependabot PRs
-    if: github.event_name == 'push' || (github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]')
+    if: >-
+      github.event_name == 'push'
+      || (github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]'
+          && startsWith(github.head_ref, 'dependabot/npm_and_yarn/'))
     runs-on: ubuntu-latest
     steps:
       # Main, not the PR, so the bump script is always main's.
@@ -40,7 +44,7 @@ jobs:
           if [ -n "$PR_BRANCH" ]; then
             branches="$PR_BRANCH"
           else
-            branches=$(gh pr list --base main --state open --author app/dependabot --json headRefName --jq '.[].headRefName')
+            branches=$(gh pr list --base main --state open --author app/dependabot --json headRefName --jq '.[].headRefName | select(startswith("dependabot/npm_and_yarn/"))')
           fi
 
           for branch in $branches; do

@@ -64,8 +64,9 @@ jobs:
 
   version:
     name: Version bumped
-    # Dependabot's own pushes aren't bumped yet: the dependabot-version workflow
-    # bumps them, then dispatches CI on the branch, which checks against main.
+    # Dependabot's own pushes aren't bumped: the dependabot-version workflow bumps
+    # its npm PRs, then dispatches CI on the branch, which checks against main.
+    # Its GitHub Actions PRs don't change the plugin, so they skip this.
     if: >-
       (github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]')
       || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
