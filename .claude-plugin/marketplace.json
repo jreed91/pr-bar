@@ -11,7 +11,7 @@
       "name": "pr-bar",
       "source": "./",
       "description": "A bar above the prompt with the current branch's GitHub PR, CI state and unread review comments, plus a /pr detail pane that hands failing checks and comments to Claude.",
-      "version": "0.7.4",
+      "version": "0.7.5",
       "author": {
         "name": "jreed91"
       },
