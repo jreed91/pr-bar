@@ -13,7 +13,7 @@
     "check": "npm run lint && npm run types && npm run typecheck && npm run validate && npm test && npm run coverage"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "eslint": "^10.11.0",
     "globals": "^17.13.0",
     "istanbul-lib-coverage": "^3.2.2",
