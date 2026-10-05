@@ -1,0 +1,50 @@
+name: Dependabot changeset
+
+# Dependabot can't write a changeset, so this adds a patch one to its npm PRs,
+# named after the PR title (GitHub Actions updates don't ship in the plugin, so
+# they skip the changeset check). It runs again when Dependabot rebases and
+# drops it. Pushes made with GITHUB_TOKEN don't start CI, so it dispatches CI
+# on the branch.
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: dependabot-changeset-${{ github.head_ref }}
+
+jobs:
+  changeset:
+    name: Add a changeset to Dependabot PRs
+    if: >-
+      github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]'
+      && startsWith(github.head_ref, 'dependabot/npm_and_yarn/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Add, push and start CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          file=".changeset/dependabot-${PR_BRANCH//\//-}.md"
+          if [ -e "$file" ]; then
+            echo "$file is already there."
+            exit 0
+          fi
+
+          printf -- '---\n"pr-bar": patch\n---\n\n%s\n' "$PR_TITLE" > "$file"
+
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$file"
+          git commit -m "Add a changeset for this update"
+          git push origin "HEAD:refs/heads/$PR_BRANCH"
+          gh workflow run ci.yml --ref "$PR_BRANCH"

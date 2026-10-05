@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-  # The dependabot-version workflow starts CI this way after it pushes a bump.
+  # The dependabot-changeset and release workflows start CI this way after they push,
+  # since pushes made with GITHUB_TOKEN don't.
   workflow_dispatch:
 
 permissions:
@@ -36,8 +37,11 @@ jobs:
       - name: Install Claude Code
         run: npm install --global "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
 
-      - name: Lint
+      - name: Lint (Biome)
         run: npm run lint
+
+      - name: Versions agree
+        run: npm run version-check
 
       - name: Lay the plugin API types
         run: npm run types
@@ -62,20 +66,29 @@ jobs:
           path: coverage/
           if-no-files-found: ignore
 
-  version:
-    name: Version bumped
-    # Dependabot's own pushes aren't bumped: the dependabot-version workflow bumps
-    # its npm PRs, then dispatches CI on the branch, which checks against main.
-    # Its GitHub Actions PRs don't change the plugin, so they skip this.
+  changeset:
+    name: Changeset added
+    # Dependabot's own pushes have no changeset yet: the dependabot-changeset
+    # workflow adds one to its npm PRs, then dispatches CI on the branch.
+    # Its GitHub Actions PRs don't change the plugin, so they skip this, and so
+    # does the release PR, which consumes the changesets.
     if: >-
-      (github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]')
-      || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+      !startsWith(github.head_ref || github.ref_name, 'changeset-release/')
+      && ((github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]')
+          || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: Fetch the base branch
-        run: git fetch --no-tags --depth=1 origin "${{ github.base_ref || 'main' }}"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
 
-      - name: Version is higher than the base branch's
-        run: node scripts/version.mjs "origin/${{ github.base_ref || 'main' }}"
+      - name: Install dependencies
+        run: npm ci
+
+      - name: A changeset describes this change
+        run: npx changeset status --since="origin/${{ github.base_ref || 'main' }}"

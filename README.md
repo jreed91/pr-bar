@@ -91,9 +91,13 @@ MIT, see [LICENSE](LICENSE).
 
 ```sh
 npm ci
-npm run check   # lint, types, typecheck, validate, test, coverage
+npm run check   # lint, version-check, types, typecheck, validate, test, coverage
 ```
 
-Or one at a time: `npm run lint` (ESLint), `npm run types` then `npm run typecheck` (lays the engine's plugin API types in `.claude-plugin/types/` and runs `tsc`), `npm run validate` (`claude plugin validate --strict`), `npm test` (`claude plugin test .`) and `npm run coverage`. Coverage must be 100% of statements, branches, functions and lines in `hooks/`, with nothing excluded; `scripts/coverage.mjs` explains how it measures both the test files and the plugin the engine loads. CI (`.github/workflows/ci.yml`) runs the same on every push to main and every pull request, with Claude Code pinned in `CLAUDE_CODE_VERSION`. Every pull request must also raise the version in `.claude-plugin/plugin.json` and the marketplace entry above main's (patch for fixes, minor for features); `npm run version-check` runs that check locally.
+Or one at a time: `npm run lint` (Biome; `npm run lint:fix` applies its safe fixes), `npm run types` then `npm run typecheck` (lays the engine's plugin API types in `.claude-plugin/types/` and runs `tsc`), `npm run validate` (`claude plugin validate --strict`), `npm test` (`claude plugin test .`) and `npm run coverage`. Coverage must be 100% of statements, branches, functions and lines in `hooks/`, with nothing excluded; `scripts/coverage.mjs` explains how it measures both the test files and the plugin the engine loads. CI (`.github/workflows/ci.yml`) runs the same on every push to main and every pull request, with Claude Code pinned in `CLAUDE_CODE_VERSION`.
 
 `hooks/register.tsx` wires the events; `hooks/git`, `hooks/github`, `hooks/model` and `hooks/views` are its parts. Like the built-in `/diff` mod, every `$` call is spelled once in `session.start` (the `Host` in `hooks/host.ts`), so `claude plugin validate` can list what the mod reaches.
+
+### Releases
+
+Versions come from [changesets](https://github.com/changesets/changesets). Every pull request adds one with `npm run changeset` (patch for fixes, minor for features) describing the change for the changelog; the "Changeset added" CI job fails without it. Don't edit the version by hand: on main, the release workflow (`.github/workflows/release.yml`) keeps a "Release pr-bar" PR open that bumps `package.json`, copies the version into `.claude-plugin/plugin.json` and the marketplace entry (`npm run version-packages`) and writes `CHANGELOG.md`. Merging it tags `vX.Y.Z` and publishes a GitHub release with that changelog entry; installs update because the plugin's version changed. `npm run version-check` checks the three versions agree. Dependabot's npm PRs get a patch changeset from `.github/workflows/dependabot-changeset.yml`.

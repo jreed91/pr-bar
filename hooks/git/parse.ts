@@ -16,7 +16,7 @@ export function githubRepoOf(
       remote.trim(),
     )
 
-  if (!match || !match[1] || !match[2]) {
+  if (!match?.[1] || !match[2]) {
     return null
   }
 

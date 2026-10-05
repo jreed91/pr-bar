@@ -491,7 +491,7 @@ export const register: Register = (on, options) => {
     return { text: (await togglePane(host)) ? 'PR pane opened' : 'PR pane closed' }
   })
 
-  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+  on('tool.call', { tool: 'Bash' }, async (_$, e, next) => {
     const ran = await next(e)
 
     if (host && ran.deny === undefined && isPrMovingCommand(e.command)) {

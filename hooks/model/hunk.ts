@@ -5,7 +5,7 @@ const LINE_CHARS = 400
 
 /** Drops what `Code` refuses: control characters other than tab and newline. */
 function printable(text: string): string {
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control characters is the point
   return text.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '')
 }
 

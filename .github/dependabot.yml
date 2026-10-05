@@ -1,5 +1,5 @@
-# Dependabot can't bump the plugin version; the dependabot-version workflow
-# does it on its npm PRs. Its GitHub Actions PRs skip the version check.
+# Dependabot can't write a changeset; the dependabot-changeset workflow adds a
+# patch one to its npm PRs. Its GitHub Actions PRs skip the changeset check.
 version: 2
 updates:
   - package-ecosystem: npm

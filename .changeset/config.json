@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@4/schema.json",
+  "changelog": ["@changesets/changelog-github", { "repo": "jreed91/pr-bar" }],
+  "commit": false,
+  "format": false,
+  "baseBranch": "main",
+  "privatePackages": { "version": true, "tag": true }
+}

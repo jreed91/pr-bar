@@ -1,56 +1,56 @@
-// Fails unless the plugin's version is higher than the base branch's, so
-// every PR ships as a new version. plugin.json and the marketplace entry
-// must also agree.
+// Keeps the plugin's version in step with package.json, which changesets owns.
+// Installs only update when plugin.json's version changes, so the release PR
+// (`npm run version-packages`) copies the version changesets picked into
+// plugin.json and the marketplace entry.
 //
-// Usage: node scripts/version.mjs <base ref>   (CI passes origin/<base branch>)
-// Checks the checkout it runs from, so the dependabot-version workflow can run
-// main's copy against a PR's worktree.
+// Usage: node scripts/version.mjs          fails unless all three agree
+//        node scripts/version.mjs --sync   writes package.json's version to the other two
 
-import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const ROOT = process.cwd()
+const PACKAGE = 'package.json'
 const PLUGIN = '.claude-plugin/plugin.json'
 const MARKETPLACE = '.claude-plugin/marketplace.json'
 
-const base = process.argv[2]
+const read = path => readFileSync(resolve(ROOT, path), 'utf8')
+const entryOf = marketplace => marketplace.plugins.find(plugin => plugin.name === 'pr-bar')
 
-if (!base) {
-  console.error('usage: node scripts/version.mjs <base ref>')
-  process.exit(2)
-}
+const version = JSON.parse(read(PACKAGE)).version
 
-const marketplaceVersionOf = text => JSON.parse(text).plugins.find(plugin => plugin.name === 'pr-bar')?.version
-
-const head = JSON.parse(readFileSync(resolve(ROOT, PLUGIN), 'utf8')).version
-const listed = marketplaceVersionOf(readFileSync(resolve(ROOT, MARKETPLACE), 'utf8'))
-const was = JSON.parse(execFileSync('git', ['show', `${base}:${PLUGIN}`], { cwd: ROOT, encoding: 'utf8' })).version
-
-/** major.minor.patch as numbers, or null for anything else. */
-const partsOf = version => {
-  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version ?? '')
-
-  return match ? match.slice(1).map(Number) : null
-}
-
-const compare = (a, b) => a.map((part, at) => part - b[at]).find(diff => diff !== 0) ?? 0
-
-const problems = []
-
-if (!partsOf(head)) {
-  problems.push(`${PLUGIN} has version "${head}"; use major.minor.patch.`)
-} else if (partsOf(was) && compare(partsOf(head), partsOf(was)) <= 0) {
-  problems.push(`${PLUGIN} is ${head}, not higher than ${was} on ${base}. Bump it: patch for fixes, minor for features.`)
-}
-
-if (listed !== head) {
-  problems.push(`${MARKETPLACE} lists pr-bar at ${listed}, but ${PLUGIN} is ${head}. Keep them the same.`)
-}
-
-if (problems.length > 0) {
-  problems.forEach(problem => console.error(problem))
+if (!/^\d+\.\d+\.\d+$/.test(version ?? '')) {
+  console.error(`${PACKAGE} has version "${version}"; use major.minor.patch.`)
   process.exit(1)
 }
 
-console.log(`Version ${head} is higher than ${was} on ${base}.`)
+if (process.argv.includes('--sync')) {
+  // Rewrite plugin.json's version field in place, so the file keeps its formatting.
+  writeFileSync(resolve(ROOT, PLUGIN), read(PLUGIN).replace(/("version":\s*")[^"]*(")/, `$1${version}$2`))
+
+  const marketplace = JSON.parse(read(MARKETPLACE))
+  entryOf(marketplace).version = version
+  writeFileSync(resolve(ROOT, MARKETPLACE), `${JSON.stringify(marketplace, null, 2)}\n`)
+}
+
+const problems = []
+const plugin = JSON.parse(read(PLUGIN)).version
+const listed = entryOf(JSON.parse(read(MARKETPLACE)))?.version
+
+if (plugin !== version) {
+  problems.push(`${PLUGIN} is ${plugin}, but ${PACKAGE} is ${version}.`)
+}
+
+if (listed !== version) {
+  problems.push(`${MARKETPLACE} lists pr-bar at ${listed}, but ${PACKAGE} is ${version}.`)
+}
+
+if (problems.length > 0) {
+  for (const problem of problems) {
+    console.error(problem)
+  }
+  console.error('Versions come from changesets: run `npm run version-packages`, or leave them to the release PR.')
+  process.exit(1)
+}
+
+console.log(`Version ${version} in ${PACKAGE}, ${PLUGIN} and ${MARKETPLACE}.`)
