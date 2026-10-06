@@ -1,0 +1,29 @@
+{
+  "ciWorkflow": "ci.yml",
+  "baseBranch": null,
+  "notify": null,
+  "maxCiFixAttempts": 3,
+  "maxReviewRounds": 2,
+  "stages": {
+    "triage": {
+      "model": "sonnet",
+      "budgetTokens": 400000
+    },
+    "plan": {
+      "model": "opus",
+      "budgetTokens": 2000000
+    },
+    "implement": {
+      "model": "opus",
+      "budgetTokens": 8000000
+    },
+    "fix-ci": {
+      "model": "opus",
+      "budgetTokens": 4000000
+    },
+    "review": {
+      "model": "opus",
+      "budgetTokens": 2000000
+    }
+  }
+}
