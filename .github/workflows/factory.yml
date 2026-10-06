@@ -1,0 +1,37 @@
+# The software factory: labelled issues become green, review-ready PRs.
+# https://github.com/jreed91/software-factory
+name: Factory
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: The stage to run
+        required: true
+        type: choice
+        options: [triage, plan, implement, fix-ci, review]
+      issue:
+        description: The issue number
+        required: true
+        type: number
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  factory:
+    # Only factory labels and CI on factory branches concern the factory.
+    if: >-
+      (github.event_name == 'issues' && startsWith(github.event.label.name, 'factory'))
+      || github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'workflow_run' && startsWith(github.event.workflow_run.head_branch, 'factory/'))
+    uses: jreed91/software-factory/.github/workflows/stage.yml@main
+    secrets: inherit
