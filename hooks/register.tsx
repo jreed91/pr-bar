@@ -1,6 +1,7 @@
 import type { PluginOptions, Register, Timer } from 'claude-code'
 
-import type { Check, Comment, DescriptionImage, PullRequest, RepoRef } from '../types'
+import type { Check, Comment, DescriptionImage, PullRequest, RepoRef, StackEntry } from '../types'
+import { checkoutBranch } from './git/checkout'
 import { locateCheckout, readRepoRef, type Checkout } from './git/locate'
 import { fetchJobLogTail, fetchPullRequest, messageOf } from './github/client'
 import { resolveToken } from './github/token'
@@ -58,6 +59,8 @@ export const register: Register = (on, options) => {
   let isPollQueued = false
   let previous: { prNumber: number; overall: Rollup['overall'] } | null = null
   let loadingLog: string | null = null
+  /** The stack branch being checked out, so a second press waits for the first. */
+  let checkingOut: string | null = null
   /** The branch the last poll found no PR for: a PR showing up on it was just opened. */
   let branchWithoutPr: string | null = null
   const opensOnNewPr = options['openOnNewPr'] !== false
@@ -390,6 +393,43 @@ export const register: Register = (on, options) => {
     }
   }
 
+  /** Checks out a stacked PR's branch from the pane, then asks GitHub about it. */
+  async function checkoutStacked(engine: Host, entry: StackEntry): Promise<void> {
+    if (checkingOut) {
+      return
+    }
+
+    const branch = entry.headRef
+    checkingOut = branch
+    engine.invalidate()
+
+    try {
+      const outcome = await checkoutBranch(engine, branch)
+
+      if (outcome.kind === 'dirty') {
+        engine.toast(`Commit or stash your changes before checking out ${branch}`)
+
+        return
+      }
+
+      if (outcome.kind === 'failed') {
+        engine.toast(`Could not check out ${branch}: ${outcome.detail}`)
+
+        return
+      }
+
+      engine.toast(
+        outcome.hasDiverged
+          ? `Checked out ${branch}; it has commits origin lacks, so it was not updated`
+          : `Checked out ${branch}`,
+      )
+      schedule(engine, 0)
+    } finally {
+      checkingOut = null
+      engine.invalidate()
+    }
+  }
+
   async function fixCi(engine: Host, check: Check): Promise<void> {
     const pr = await currentPr()
 
@@ -590,6 +630,7 @@ export const register: Register = (on, options) => {
         logs: view.logs,
         armedIds: view.armed.map(item => item.id),
         loadingLog,
+        checkingOut,
         columns: e.props.bodyColumns,
         showPassing: view.showPassing,
         showConversation: view.showConversation,
@@ -615,6 +656,7 @@ export const register: Register = (on, options) => {
           setView(engine, { showDescription: !view.showDescription })
           void loadImages(engine)
         },
+        checkout: entry => void checkoutStacked(engine, entry),
         toggleMore: list =>
           setView(engine, {
             expanded: view.expanded.includes(list)
