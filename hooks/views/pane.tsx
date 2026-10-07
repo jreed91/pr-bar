@@ -29,6 +29,8 @@ export type PaneModel = {
   logs: Readonly<Record<string, string>>
   armedIds: readonly string[]
   loadingLog: string | null
+  /** The stack branch being checked out, while git runs. */
+  checkingOut: string | null
   /** The pane body's width, so each list row fits on one line. */
   columns: number
   /** List passing and skipped checks, not just their count. */
@@ -62,6 +64,8 @@ export type PaneActions = {
   toggleDescription: () => void
   /** Shows a capped list in full, or caps it again. */
   toggleMore: (list: ExpandableList) => void
+  /** Checks out a stacked PR's head branch in this folder. */
+  checkout: (pr: StackEntry) => void
 }
 
 type Table = Pick<
@@ -305,7 +309,8 @@ export function paneView(
         </Box>
       </Box>
 
-      {pr.stack.length > 0 && stackList({ Box, Text, Link }, pr.stack, pr.number, rowWidth)}
+      {pr.stack.length > 0 &&
+        stackList({ Box, Text, Button, Link }, pr.stack, pr.number, model.checkingOut, rowWidth, actions)}
 
       {description.length > 0 && (
         <Box marginTop={1} flexDirection="column">
@@ -472,14 +477,16 @@ export function paneView(
 
 /**
  * The stack the PR sits in, top first as the branches pile up, each with
- * its CI and ending on the branch it is based on; the others link to their
- * PR, the current one is marked.
+ * its CI and ending on the branch it is based on; the current one is
+ * marked, pressing another checks out its branch, and ↗ opens its PR.
  */
 function stackList(
-  { Box, Text, Link }: Pick<Table, 'Box' | 'Text' | 'Link'>,
+  { Box, Text, Button, Link }: Pick<Table, 'Box' | 'Text' | 'Button' | 'Link'>,
   stack: readonly StackEntry[],
   current: number,
+  checkingOut: string | null,
   width: number,
+  actions: PaneActions,
 ): JSX.Element {
   const position = stack.findIndex(pr => pr.number === current) + 1
 
@@ -489,7 +496,7 @@ function stackList(
         Stack ({position}/{stack.length})
       </Text>
       {[...stack].reverse().map((pr, index) => {
-        const label = fit(`#${pr.number} ${pr.title}${pr.isDraft ? ' · draft' : ''}`, width)
+        const title = `#${pr.number} ${pr.title}${pr.isDraft ? ' · draft' : ''}`
 
         return (
           <Box key={`row:stack:${pr.number}`} flexDirection="column">
@@ -501,10 +508,18 @@ function stackList(
               </Box>
               {pr.number === current ? (
                 <Text bold wrap="truncate-end">
-                  {label}
+                  {fit(title, width)}
                 </Text>
               ) : (
-                <Link href={pr.url} label={label} />
+                <Box columnGap={1}>
+                  <Button
+                    key={`checkout:${pr.number}`}
+                    plain
+                    label={checkingOut === pr.headRef ? fit(`checking out ${pr.headRef}…`, width - 2) : fit(title, width - 2)}
+                    onPress={() => actions.checkout(pr)}
+                  />
+                  <Link href={pr.url} label="↗" />
+                </Box>
               )}
             </Box>
             {index === stack.length - 1 && (
