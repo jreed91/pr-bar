@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { mock } from 'claude-code/testing'
+import { describe, mock } from 'claude-code/testing'
 
 export const NOW = Date.parse('2026-10-01T12:00:00Z')
 
@@ -178,3 +178,24 @@ export const PANE = {
   requestId: 'pr-bar',
   props: { title: 'Pull request', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 60 } },
 } as never
+
+/** The surfaces that draw the bar and the pane, so each UI test runs on both. */
+export const SURFACES = ['terminal', 'desktop'] as const
+
+export type Surface = (typeof SURFACES)[number]
+
+/** Declares `body`'s tests once per surface, handing it that surface's start and fixtures. */
+export function onEverySurface(
+  body: (on: { surface: Surface; START: never; BAR: never; PANE: never }) => void,
+): void {
+  for (const surface of SURFACES) {
+    describe(surface, () =>
+      body({
+        surface,
+        START: { ...(START as object), surface } as never,
+        BAR: { ...(BAR as object), surface } as never,
+        PANE: { ...(PANE as object), surface } as never,
+      }),
+    )
+  }
+}

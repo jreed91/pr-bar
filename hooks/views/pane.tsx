@@ -2,7 +2,7 @@ import type { Elements } from 'claude-code'
 
 import type { Check, Comment, DescriptionImage, Problem, PullRequest, Selection, Snapshot, StackEntry } from '../../types'
 import { ageOf } from '../model/cadence'
-import { descriptionPartsOf, imageBoxOf, pngSvgOf, type DescriptionPart } from '../model/description'
+import { descriptionPartsOf, imageBoxOf, type DescriptionPart } from '../model/description'
 import { rollupOf } from '../model/rollup'
 import { HUNK_ROWS, hunkTailOf, printableTailOf } from '../model/hunk'
 import { bodyMarkdownOf, boundedMarkdownOf, commentRowOf, fit } from '../model/preview'
@@ -218,7 +218,11 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
   // What "attach all" takes: every unread comment the pane lists or counts.
   const unreadRows = [...inline, ...(model.showConversation ? conversation : [])].filter(row => row.isUnread)
   const unreadCount = unreadRows.length
-  const rowWidth = Math.max(20, model.columns - MARKER_COLUMNS - 1)
+  // The terminal cuts each row to the pane's columns; the desktop's text is not
+  // monospace, so there the surface truncates it to the room it has.
+  const rowWidth = model.isTerminal ? Math.max(20, model.columns - MARKER_COLUMNS - 1) : Number.POSITIVE_INFINITY
+  const opened = (detail: JSX.Element) => openedRow(Box, detail, model.isTerminal)
+  const openedComment = (comment: Comment) => opened(commentDetailOf(comment))
   const description = descriptionPartsOf(pr.body)
 
   const selectedCheck =
@@ -327,10 +331,7 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
             />
           </Box>
           {model.showDescription &&
-            openedRow(
-              Box,
-              descriptionView(surface, model.isTerminal, description, model.images, rowWidth),
-            )}
+            opened(descriptionView(surface, model.isTerminal, description, model.images, rowWidth))}
         </Box>
       )}
 
@@ -342,7 +343,7 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
         selection,
         rowWidth,
         actions,
-        commentDetailOf,
+        openedComment,
         unreadCount > 0 && (
           <Button
             key="attach-unread"
@@ -382,7 +383,7 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
           selection,
           rowWidth,
           actions,
-          commentDetailOf,
+          openedComment,
         )
       ) : null}
       {model.showConversation && moreRow('conversation', conversation.length, CONVERSATION_ROWS)}
@@ -428,17 +429,16 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
                 {ICON[check.state].glyph}
               </Text>
             </Box>
-            <Button
-              key={`select:check:${check.id}`}
-              plain
-              dimColor={check.state === 'pass' || check.state === 'skip'}
-              label={fit(check.name, rowWidth)}
-              onPress={() =>
-                actions.select(check === selectedCheck ? { kind: 'none' } : { kind: 'check', id: check.id })
-              }
-            />
+            {rowButton({ Button, Text }, {
+              key: `select:check:${check.id}`,
+              text: check.name,
+              width: rowWidth,
+              dimColor: check.state === 'pass' || check.state === 'skip',
+              onPress: () =>
+                actions.select(check === selectedCheck ? { kind: 'none' } : { kind: 'check', id: check.id }),
+            })}
           </Box>
-          {check === selectedCheck && openedRow(Box, checkDetailOf(check))}
+          {check === selectedCheck && opened(checkDetailOf(check))}
         </Box>
       ))}
       {moreRow('checks', checks.length, LIST_ROWS)}
@@ -464,8 +464,8 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
               {ICON[selectedCheck.state].glyph} {selectedCheck.name}
             </Text>
           )}
-          {selectedCheck && openedRow(Box, checkDetailOf(selectedCheck))}
-          {selectedComment && openedRow(Box, commentDetailOf(selectedComment))}
+          {selectedCheck && opened(checkDetailOf(selectedCheck))}
+          {selectedComment && opened(commentDetailOf(selectedComment))}
           {!selectedCheck && !selectedComment && model.selection?.kind !== 'none' && (
             <Text dimColor>Nothing failing and nothing unread. Pick a row to see it.</Text>
           )}
@@ -512,12 +512,13 @@ function stackList(
                 </Text>
               ) : (
                 <Box columnGap={1}>
-                  <Button
-                    key={`checkout:${pr.number}`}
-                    plain
-                    label={checkingOut === pr.headRef ? fit(`checking out ${pr.headRef}…`, width - 2) : fit(title, width - 2)}
-                    onPress={() => actions.checkout(pr)}
-                  />
+                  {rowButton({ Button, Text }, {
+                    key: `checkout:${pr.number}`,
+                    text: checkingOut === pr.headRef ? `checking out ${pr.headRef}…` : title,
+                    width: width - 2,
+                    dimColor: false,
+                    onPress: () => actions.checkout(pr),
+                  })}
                   <Link href={pr.url} label="↗" />
                 </Box>
               )}
@@ -535,6 +536,24 @@ function stackList(
   )
 }
 
+/**
+ * A list row's Button. The terminal draws its label cut to `width` columns; where
+ * the width is unbounded (the desktop, whose text is not monospace) the label is a
+ * Text the surface truncates to the room it has.
+ */
+function rowButton(
+  { Button, Text }: Pick<Table, 'Button' | 'Text'>,
+  row: { key: string; text: string; width: number; dimColor: boolean; onPress: () => void },
+): JSX.Element {
+  return Number.isFinite(row.width) ? (
+    <Button key={row.key} plain dimColor={row.dimColor} label={fit(row.text, row.width)} onPress={row.onPress} />
+  ) : (
+    <Button key={row.key} plain dimColor={row.dimColor} onPress={row.onPress}>
+      <Text wrap="truncate-end">{row.text}</Text>
+    </Button>
+  )
+}
+
 /** Whether `comment` is the open row. */
 const isOpen = (selection: Selection, comment: Comment): boolean =>
   selection?.kind === 'comment' && selection.id === comment.id
@@ -547,6 +566,7 @@ function commentList(
   selection: Selection,
   width: number,
   actions: PaneActions,
+  /** The open row's card. */
   detailOf: (comment: Comment) => JSX.Element,
   action: JSX.Element | false = false,
 ): JSX.Element {
@@ -571,19 +591,16 @@ function commentList(
                 {isUnread ? '●' : comment.isResolved ? '✓' : '·'}
               </Text>
             </Box>
-            <Button
-              key={`select:comment:${comment.id}`}
-              plain
-              dimColor={!isUnread}
-              label={commentRowOf(comment, width)}
-              onPress={() =>
-                actions.select(
-                  isOpen(selection, comment) ? { kind: 'none' } : { kind: 'comment', id: comment.id },
-                )
-              }
-            />
+            {rowButton({ Button, Text }, {
+              key: `select:comment:${comment.id}`,
+              text: commentRowOf(comment, width),
+              width,
+              dimColor: !isUnread,
+              onPress: () =>
+                actions.select(isOpen(selection, comment) ? { kind: 'none' } : { kind: 'comment', id: comment.id }),
+            })}
           </Box>
-          {isOpen(selection, comment) && openedRow(Box, detailOf(comment))}
+          {isOpen(selection, comment) && detailOf(comment)}
         </Box>
       ))}
     </Box>
@@ -722,13 +739,11 @@ function descriptionView(
             return <Image key={key} source={{ png: image.base64 }} {...imageBoxOf(image, width)} alt={alt} />
           }
 
-          // The desktop has no Image: the PNG inside an Svg, when it fits one.
-          const source = pngSvgOf(image)
-
-          if (source) {
+          // The desktop has no Image: the picture inside an Svg, shrunk where it had to be.
+          if (image.svg) {
             const { Svg } = surface as Elements['desktop']
 
-            return <Svg key={key} source={source} alt={alt} />
+            return <Svg key={key} source={image.svg} alt={alt} />
           }
         }
 
@@ -747,10 +762,17 @@ function descriptionView(
   )
 }
 
-/** A selected row's detail: a card under the row, framed so it reads apart from the list. */
-function openedRow(Box: Table['Box'], detail: JSX.Element): JSX.Element {
-  return (
+/**
+ * A selected row's detail: a card under the row, set apart from the list. The
+ * terminal frames it in a dim border; the desktop indents it, without box drawing.
+ */
+function openedRow(Box: Table['Box'], detail: JSX.Element, isTerminal: boolean): JSX.Element {
+  return isTerminal ? (
     <Box marginLeft={2} marginBottom={1} borderStyle="round" borderDimColor paddingX={1} flexDirection="column">
+      {detail}
+    </Box>
+  ) : (
+    <Box marginLeft={4} marginTop={1} marginBottom={1} flexDirection="column">
       {detail}
     </Box>
   )

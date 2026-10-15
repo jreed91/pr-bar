@@ -68,7 +68,14 @@ export type PullRequest = {
 /** A description image as fetched: drawn from its PNG bytes, or shown as a link. */
 export type DescriptionImage =
   | { kind: 'loading' }
-  | { kind: 'png'; base64: string; width: number; height: number }
+  | {
+      kind: 'png'
+      base64: string
+      width: number
+      height: number
+      /** The picture as `Svg` markup for the desktop, shrunk to fit where it had to be; null where it could not be. */
+      svg: string | null
+    }
   | { kind: 'link' }
 
 /** What the last poll came to. */
