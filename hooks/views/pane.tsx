@@ -4,6 +4,7 @@ import type { Check, Comment, DescriptionImage, Problem, PullRequest, Selection,
 import { ageOf } from '../model/cadence'
 import { descriptionPartsOf, imageBoxOf, type DescriptionPart } from '../model/description'
 import { rollupOf } from '../model/rollup'
+import { timelineSvgOf } from '../model/timeline'
 import { HUNK_ROWS, hunkTailOf, printableTailOf } from '../model/hunk'
 import { bodyMarkdownOf, boundedMarkdownOf, commentRowOf, fit } from '../model/preview'
 import { orderedComments, visibleComments } from '../model/unread'
@@ -422,6 +423,7 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
       <Box marginTop={1}>
         <Text bold>Checks ({allChecks.length})</Text>
       </Box>
+      {!model.isTerminal && checksTimeline(surface, allChecks, snapshot.fetchedAt)}
       {allChecks.length === 0 && <Text dimColor>    none reported</Text>}
       {checks.slice(0, checkRows).map(check => (
         <Box key={`row:check:${check.id}`} flexDirection="column">
@@ -535,6 +537,26 @@ function stackList(
           </Box>
         )
       })}
+    </Box>
+  )
+}
+
+/**
+ * The checks on one time axis, on a surface that draws `Svg` (the desktop): a
+ * bar each, its tooltip naming the check, its state and how long it took.
+ */
+function checksTimeline(surface: Surface, checks: readonly Check[], now: number): JSX.Element | null {
+  const source = timelineSvgOf(checks, now)
+
+  if (!source) {
+    return null
+  }
+
+  const { Box, Svg } = surface as Elements['desktop']
+
+  return (
+    <Box marginLeft={MARKER_COLUMNS} marginBottom={1}>
+      <Svg key="checks-timeline" source={source} alt="When each check ran, on one time axis" isInteractive />
     </Box>
   )
 }

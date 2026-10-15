@@ -10,6 +10,9 @@ export type Check = {
   /** The Actions job id, when the check is a GitHub Actions job: its log is fetchable. */
   jobId: number | null
   description: string | null
+  /** When the check started and finished, in ms; null where GitHub does not say (a commit status, or not yet). */
+  startedAt: number | null
+  completedAt: number | null
 }
 
 /** One comment of any of the three kinds, flattened. */

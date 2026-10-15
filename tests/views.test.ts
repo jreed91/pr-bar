@@ -534,3 +534,26 @@ describe('the desktop layout', () => {
     expect((await pane.find({ type: 'Button', key: 'select:check:CR1' }))?.text).toBe(`CI / ${longTitle}`)
   })
 })
+
+describe('the checks timeline', () => {
+  const timed = [
+    checkRun({ startedAt: '2026-10-01T11:50:00Z', completedAt: '2026-10-01T11:53:00Z' }),
+    checkRun({ id: 'CR2', databaseId: 100, name: 'lint', conclusion: 'SUCCESS', startedAt: '2026-10-01T11:51:00Z', completedAt: '2026-10-01T11:52:00Z' }),
+  ]
+
+  test('draws on the desktop, above the checks, and not on the terminal', async ($, on) => {
+    const terminal = await drawn($, on, prAnswer({}, timed), PANE)
+    expect(await terminal.find({ type: 'Svg' })).toBeUndefined()
+
+    const pane = await $.ui.mount({ ...(PANE as object), surface: 'desktop' } as never)
+    const timeline = await pane.find({ type: 'Svg' })
+    expect(timeline?.props).toMatchObject({ isInteractive: true, source: expect.stringContaining('<title>CI / test · failed · 3m</title>') })
+  })
+
+  test('is left out when GitHub gives no times', async ($, on) => {
+    await drawn($, on, prAnswer(), PANE)
+    const pane = await $.ui.mount({ ...(PANE as object), surface: 'desktop' } as never)
+
+    expect(await pane.find({ type: 'Svg' })).toBeUndefined()
+  })
+})

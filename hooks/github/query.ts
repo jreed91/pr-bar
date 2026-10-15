@@ -17,7 +17,7 @@ export const PR_QUERY = `query PrBar($owner: String!, $name: String!, $branch: S
         number title url isDraft reviewDecision mergeable baseRefName headRefName body bodyHTML
         commits(last: 1) { nodes { commit { oid statusCheckRollup { contexts(first: 100) { nodes {
           __typename
-          ... on CheckRun { id databaseId name status conclusion detailsUrl title
+          ... on CheckRun { id databaseId name status conclusion detailsUrl title startedAt completedAt
             checkSuite { app { slug } workflowRun { workflow { name } } } }
           ... on StatusContext { id context state targetUrl description }
         } } } } } }
@@ -67,6 +67,13 @@ const timeOf = (value: unknown): number => {
   return Number.isNaN(ms) ? 0 : ms
 }
 
+/** A timestamp in ms, or null where there is none. */
+const momentOf = (value: unknown): number | null => {
+  const ms = timeOf(value)
+
+  return ms === 0 ? null : ms
+}
+
 const FAILING = new Set([
   'FAILURE',
   'TIMED_OUT',
@@ -90,6 +97,8 @@ export function checkOf(node: Json): Check {
       url: stringOf(node['targetUrl']),
       jobId: null,
       description: stringOf(node['description']),
+      startedAt: null,
+      completedAt: null,
     }
   }
 
@@ -117,6 +126,8 @@ export function checkOf(node: Json): Check {
     url: stringOf(node['detailsUrl']),
     jobId: isActions && typeof databaseId === 'number' ? databaseId : null,
     description: stringOf(node['title']),
+    startedAt: momentOf(node['startedAt']),
+    completedAt: momentOf(node['completedAt']),
   }
 }
 

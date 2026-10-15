@@ -65,6 +65,6 @@ describe('checkOf', () => {
   })
 
   test('a check run with no name, id or suite', async () => {
-    expect(checkOf({ status: 'COMPLETED', conclusion: 'SUCCESS' })).toEqual({ id: 'check', name: 'check', state: 'pass', url: null, jobId: null, description: null })
+    expect(checkOf({ status: 'COMPLETED', conclusion: 'SUCCESS' })).toEqual({ id: 'check', name: 'check', state: 'pass', url: null, jobId: null, description: null, startedAt: null, completedAt: null })
   })
 })
