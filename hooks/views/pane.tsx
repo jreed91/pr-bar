@@ -4,6 +4,7 @@ import type { Check, Comment, DescriptionImage, Problem, PullRequest, Selection,
 import { ageOf } from '../model/cadence'
 import { descriptionPartsOf, imageBoxOf, type DescriptionPart } from '../model/description'
 import { rollupOf } from '../model/rollup'
+import { timelineSvgOf } from '../model/timeline'
 import { HUNK_ROWS, hunkTailOf, printableTailOf } from '../model/hunk'
 import { bodyMarkdownOf, boundedMarkdownOf, commentRowOf, fit } from '../model/preview'
 import { orderedComments, visibleComments } from '../model/unread'
@@ -77,6 +78,9 @@ type Table = Pick<
 >
 /** A surface's whole table: the terminal's has `Image`, every other surface's `Svg`. */
 type Surface = Elements[keyof Elements]
+
+/** The most of a row the desktop is handed; it truncates what does not fit. */
+const DESKTOP_ROW_CHARS = 300
 
 const ICON: Record<Check['state'], { glyph: string; color: string }> = {
   fail: { glyph: '✗', color: 'error' },
@@ -219,8 +223,8 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
   const unreadRows = [...inline, ...(model.showConversation ? conversation : [])].filter(row => row.isUnread)
   const unreadCount = unreadRows.length
   // The terminal cuts each row to the pane's columns; the desktop's text is not
-  // monospace, so there the surface truncates it to the room it has.
-  const rowWidth = model.isTerminal ? Math.max(20, model.columns - MARKER_COLUMNS - 1) : Number.POSITIVE_INFINITY
+  // monospace, so there a row is only held under a label's limit, for the surface to truncate.
+  const rowWidth = model.isTerminal ? Math.max(20, model.columns - MARKER_COLUMNS - 1) : DESKTOP_ROW_CHARS
   const opened = (detail: JSX.Element) => openedRow(Box, detail, model.isTerminal)
   const openedComment = (comment: Comment) => opened(commentDetailOf(comment))
   const description = descriptionPartsOf(pr.body)
@@ -419,6 +423,7 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
       <Box marginTop={1}>
         <Text bold>Checks ({allChecks.length})</Text>
       </Box>
+      {!model.isTerminal && checksTimeline(surface, allChecks, snapshot.fetchedAt)}
       {allChecks.length === 0 && <Text dimColor>    none reported</Text>}
       {checks.slice(0, checkRows).map(check => (
         <Box key={`row:check:${check.id}`} flexDirection="column">
@@ -429,14 +434,15 @@ export function paneView(surface: Surface, model: PaneModel, actions: PaneAction
                 {ICON[check.state].glyph}
               </Text>
             </Box>
-            {rowButton({ Button, Text }, {
-              key: `select:check:${check.id}`,
-              text: check.name,
-              width: rowWidth,
-              dimColor: check.state === 'pass' || check.state === 'skip',
-              onPress: () =>
-                actions.select(check === selectedCheck ? { kind: 'none' } : { kind: 'check', id: check.id }),
-            })}
+            <Button
+              key={`select:check:${check.id}`}
+              plain
+              dimColor={check.state === 'pass' || check.state === 'skip'}
+              label={fit(check.name, rowWidth)}
+              onPress={() =>
+                actions.select(check === selectedCheck ? { kind: 'none' } : { kind: 'check', id: check.id })
+              }
+            />
           </Box>
           {check === selectedCheck && opened(checkDetailOf(check))}
         </Box>
@@ -512,13 +518,12 @@ function stackList(
                 </Text>
               ) : (
                 <Box columnGap={1}>
-                  {rowButton({ Button, Text }, {
-                    key: `checkout:${pr.number}`,
-                    text: checkingOut === pr.headRef ? `checking out ${pr.headRef}…` : title,
-                    width: width - 2,
-                    dimColor: false,
-                    onPress: () => actions.checkout(pr),
-                  })}
+                  <Button
+                    key={`checkout:${pr.number}`}
+                    plain
+                    label={checkingOut === pr.headRef ? fit(`checking out ${pr.headRef}…`, width - 2) : fit(title, width - 2)}
+                    onPress={() => actions.checkout(pr)}
+                  />
                   <Link href={pr.url} label="↗" />
                 </Box>
               )}
@@ -537,20 +542,22 @@ function stackList(
 }
 
 /**
- * A list row's Button. The terminal draws its label cut to `width` columns; where
- * the width is unbounded (the desktop, whose text is not monospace) the label is a
- * Text the surface truncates to the room it has.
+ * The checks on one time axis, on a surface that draws `Svg` (the desktop): a
+ * bar each, its tooltip naming the check, its state and how long it took.
  */
-function rowButton(
-  { Button, Text }: Pick<Table, 'Button' | 'Text'>,
-  row: { key: string; text: string; width: number; dimColor: boolean; onPress: () => void },
-): JSX.Element {
-  return Number.isFinite(row.width) ? (
-    <Button key={row.key} plain dimColor={row.dimColor} label={fit(row.text, row.width)} onPress={row.onPress} />
-  ) : (
-    <Button key={row.key} plain dimColor={row.dimColor} onPress={row.onPress}>
-      <Text wrap="truncate-end">{row.text}</Text>
-    </Button>
+function checksTimeline(surface: Surface, checks: readonly Check[], now: number): JSX.Element | null {
+  const source = timelineSvgOf(checks, now)
+
+  if (!source) {
+    return null
+  }
+
+  const { Box, Svg } = surface as Elements['desktop']
+
+  return (
+    <Box marginLeft={MARKER_COLUMNS} marginBottom={1}>
+      <Svg key="checks-timeline" source={source} alt="When each check ran, on one time axis" isInteractive />
+    </Box>
   )
 }
 
@@ -591,14 +598,17 @@ function commentList(
                 {isUnread ? '●' : comment.isResolved ? '✓' : '·'}
               </Text>
             </Box>
-            {rowButton({ Button, Text }, {
-              key: `select:comment:${comment.id}`,
-              text: commentRowOf(comment, width),
-              width,
-              dimColor: !isUnread,
-              onPress: () =>
-                actions.select(isOpen(selection, comment) ? { kind: 'none' } : { kind: 'comment', id: comment.id }),
-            })}
+            <Button
+              key={`select:comment:${comment.id}`}
+              plain
+              dimColor={!isUnread}
+              label={commentRowOf(comment, width)}
+              onPress={() =>
+                actions.select(
+                  isOpen(selection, comment) ? { kind: 'none' } : { kind: 'comment', id: comment.id },
+                )
+              }
+            />
           </Box>
           {isOpen(selection, comment) && detailOf(comment)}
         </Box>

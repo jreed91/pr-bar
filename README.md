@@ -8,7 +8,9 @@ A Claude Code mod that puts the current branch's GitHub PR above the prompt, so 
 
 ![The /pr pane with an inline review comment selected: opened in place as a card with its full path, the commented lines, its text, Attach to prompt and Open on GitHub](docs/screenshots/pane-comment.png)
 
-_The screenshots are the trees the mod draws for a sample PR, captured through `claude plugin test` and rendered in a terminal frame._
+![The /pr pane on the desktop: the checks drawn as a timeline above the list, a failing check opened with Attach to prompt as the primary button](docs/screenshots/pane-desktop.png)
+
+_The screenshots are the trees the mod draws for a sample PR, captured through `claude plugin test` and rendered in a terminal frame, or for the last one in a desktop-style frame; they are not captures of the apps themselves._
 
 It starts quiet and you opt into more:
 
@@ -84,7 +86,7 @@ Coming from `pr-band@jreed91`? The plugin is now `pr-bar`, a different plugin id
 
 ### Desktop app
 
-The bar and the pane draw in the desktop app's Code tab too, with the same buttons. There they use the app's own buttons (Details is the primary one), leave titles and rows whole for the app to truncate to the room it has, and set an open row's card apart by indenting it rather than drawing a box around it. `/plugin` does not run there, so install from the prompt box: click **+**, then **Plugins**, **Add marketplace** with `jreed91/pr-bar`, then **Add plugin** on PrBar. Installed from a terminal at the user scope, it loads in the desktop app's sessions as well.
+The bar and the pane draw in the desktop app's Code tab too, with the same buttons. There they use the app's own buttons (Details is the primary one), leave titles and rows whole for the app to truncate to the room it has, and set an open row's card apart by indenting it rather than drawing a box around it. Above the checks the pane draws a timeline, one bar per check from its start to its end; hover a bar for the check's name, state and duration. `/plugin` does not run there, so install from the prompt box: click **+**, then **Plugins**, **Add marketplace** with `jreed91/pr-bar`, then **Add plugin** on PrBar. Installed from a terminal at the user scope, it loads in the desktop app's sessions as well.
 
 The token comes from the same places. An app started from the Dock or Start menu may not see a `GH_TOKEN` exported in your shell profile; `gh auth login` works either way. To set the `githubToken` setting instead, run `/plugin configure pr-bar@jreed91` in a terminal session: the setting is shared with the desktop app's sessions.
 

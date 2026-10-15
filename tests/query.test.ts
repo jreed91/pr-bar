@@ -21,7 +21,7 @@ const PR_NODE = {
   baseRefName: 'main',
   headRefName: 'feat/bar',
   commits: { nodes: [{ commit: { oid: 'abc123', statusCheckRollup: { contexts: { nodes: [
-    { __typename: 'CheckRun', id: 'CR1', databaseId: 99, name: 'test', status: 'COMPLETED', conclusion: 'FAILURE', detailsUrl: 'https://x', title: '2 tests failed', checkSuite: { app: { slug: 'github-actions' }, workflowRun: { workflow: { name: 'CI' } } } },
+    { __typename: 'CheckRun', id: 'CR1', databaseId: 99, name: 'test', status: 'COMPLETED', conclusion: 'FAILURE', detailsUrl: 'https://x', title: '2 tests failed', startedAt: '2026-10-01T11:50:00Z', completedAt: '2026-10-01T11:53:00Z', checkSuite: { app: { slug: 'github-actions' }, workflowRun: { workflow: { name: 'CI' } } } },
     { __typename: 'CheckRun', id: 'CR2', databaseId: 100, name: 'lint', status: 'IN_PROGRESS', conclusion: null, detailsUrl: null, title: null, checkSuite: { app: { slug: 'github-actions' }, workflowRun: { workflow: { name: 'CI' } } } },
     { __typename: 'CheckRun', id: 'CR3', databaseId: 101, name: 'docs', status: 'COMPLETED', conclusion: 'SKIPPED', detailsUrl: null, title: null, checkSuite: { app: { slug: 'other-app' }, workflowRun: null } },
     { __typename: 'StatusContext', id: 'SC1', context: 'vercel', state: 'SUCCESS', targetUrl: 'https://v', description: 'Deployed' },
@@ -52,6 +52,12 @@ describe('parseResponse', () => {
       ['CI / lint', 'pending', 100],
       ['docs', 'skip', null],
       ['vercel', 'pass', null],
+    ])
+    expect(pr.checks.map(check => [check.startedAt, check.completedAt])).toEqual([
+      [Date.parse('2026-10-01T11:50:00Z'), Date.parse('2026-10-01T11:53:00Z')],
+      [null, null],
+      [null, null],
+      [null, null],
     ])
     // The empty COMMENTED review is left out; the resolved thread is kept, marked.
     expect(pr.comments.map(comment => comment.id)).toEqual(['RC2', 'RC1', 'IC1', 'R2'])
