@@ -1,5 +1,17 @@
 # pr-bar
 
+## 0.8.0
+
+### Minor Changes
+
+- [#27](https://github.com/jreed91/pr-bar/pull/27) [`76a7f4f`](https://github.com/jreed91/pr-bar/commit/76a7f4f0a39e5f664efa23c63603a2ee1a21b9ae) Thanks [@jreed91](https://github.com/jreed91)! - The pane draws the PR description's PNG images in the Claude desktop app, where they were only links before; a PNG too large for the desktop's picture element stays a link. The README says how to install PrBar from the desktop app and where it finds the token there.
+
+- [#26](https://github.com/jreed91/pr-bar/pull/26) [`c5b6912`](https://github.com/jreed91/pr-bar/commit/c5b691240c85f76d6a9ed4013b81300729795d0d) Thanks [@jreed91](https://github.com/jreed91)! - Pressing another PR in the pane's stack list checks out its branch: PrBar fetches it from origin, switches to it (fast-forwarding a local copy that is behind) and refuses while tracked files have changes. The ↗ beside each row still opens the PR on GitHub.
+
+### Patch Changes
+
+- [#18](https://github.com/jreed91/pr-bar/pull/18) [`2729fbd`](https://github.com/jreed91/pr-bar/commit/2729fbda1e3b4d994e3e5b63107de7f470fe5c1a) Thanks [@dependabot](https://github.com/apps/dependabot)! - Bump typescript from 5.9.3 to 7.0.2
+
 ## 0.7.6
 
 ### Patch Changes
