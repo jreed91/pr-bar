@@ -2,7 +2,7 @@ import type { Elements } from 'claude-code'
 
 import type { Check, Comment, DescriptionImage, Problem, PullRequest, Selection, Snapshot, StackEntry } from '../../types'
 import { ageOf } from '../model/cadence'
-import { descriptionPartsOf, imageBoxOf, pngSvgOf, type DescriptionPart } from '../model/description'
+import { descriptionPartsOf, imageBoxOf, type DescriptionPart } from '../model/description'
 import { rollupOf } from '../model/rollup'
 import { HUNK_ROWS, hunkTailOf, printableTailOf } from '../model/hunk'
 import { bodyMarkdownOf, boundedMarkdownOf, commentRowOf, fit } from '../model/preview'
@@ -722,13 +722,11 @@ function descriptionView(
             return <Image key={key} source={{ png: image.base64 }} {...imageBoxOf(image, width)} alt={alt} />
           }
 
-          // The desktop has no Image: the PNG inside an Svg, when it fits one.
-          const source = pngSvgOf(image)
-
-          if (source) {
+          // The desktop has no Image: the picture inside an Svg, shrunk where it had to be.
+          if (image.svg) {
             const { Svg } = surface as Elements['desktop']
 
-            return <Svg key={key} source={source} alt={alt} />
+            return <Svg key={key} source={image.svg} alt={alt} />
           }
         }
 

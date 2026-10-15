@@ -431,12 +431,31 @@ describe('description', () => {
     expect(await pane.find({ type: 'Text', text: '[image: plain]' })).toBeDefined()
   })
 
-  test('the desktop draws a PNG as an Svg, and links one too large for it', async ($, on) => {
-    const LARGE = PNG + 'A'.repeat(140_000)
+  test('the desktop draws a PNG as an Svg, shrinking one too large for it with sips', async ($, on) => {
+    const LARGE = PNG.slice(0, -4) + 'A'.repeat(140_000) + PNG.slice(-4)
+    const SMALL_JPEG = `/9j/${'A'.repeat(100)}`
+    const sips: string[] = []
     const { clock } = world(on, {
-      http: () => json(described(3)),
-      run: curl({ [signed(0)]: PNG, [signed(1)]: LARGE, [signed(2)]: GIF }),
-      bytes: { '/tmp/prbar/image-0.png': PNG, '/tmp/prbar/image-1.png': LARGE, '/tmp/prbar/image-2.png': GIF },
+      http: () => json(described(5)),
+      run: argv => {
+        if (argv[0] !== 'sips') return curl({ [signed(4)]: GIF })(argv)
+        sips.push(argv[argv.length - 1] as string)
+        // shot 2's sips fails, as where there is none (not macOS).
+        return { exitCode: argv.includes('/tmp/prbar/image-2.png') ? 1 : 0 }
+      },
+      bytes: {
+        '/tmp/prbar/image-0.png': PNG,
+        '/tmp/prbar/image-1.png': LARGE,
+        '/tmp/prbar/image-1.png.0.jpg': LARGE,
+        '/tmp/prbar/image-1.png.1.jpg': SMALL_JPEG,
+        '/tmp/prbar/image-2.png': LARGE,
+        // shot 3 does not fit at any step.
+        '/tmp/prbar/image-3.png': LARGE,
+        '/tmp/prbar/image-3.png.0.jpg': LARGE,
+        '/tmp/prbar/image-3.png.1.jpg': LARGE,
+        '/tmp/prbar/image-3.png.2.jpg': LARGE,
+        '/tmp/prbar/image-4.png': GIF,
+      },
     })
     await $.session.start(START)
     await clock.settle()
@@ -447,9 +466,38 @@ describe('description', () => {
 
     expect(await pane.find({ type: 'Image' })).toBeUndefined()
     const svgs = await pane.findAll({ type: 'Svg' })
-    expect(svgs).toHaveLength(1)
+    expect(svgs).toHaveLength(2)
     expect(svgs[0]?.props).toMatchObject({ alt: 'shot 0', source: expect.stringContaining(`data:image/png;base64,${PNG}`) })
-    expect(await pane.find({ type: 'Link', text: '[image: shot 1]' })).toBeDefined()
-    expect(await pane.find({ type: 'Link', text: '[image: shot 2]' })).toBeDefined()
+    expect(svgs[1]?.props).toMatchObject({ alt: 'shot 1', source: expect.stringContaining(`data:image/jpeg;base64,${SMALL_JPEG}`) })
+    expect(svgs[1]?.props).toMatchObject({ source: expect.stringContaining('viewBox="0 0 800 400"') })
+    for (const shot of [2, 3, 4]) {
+      expect(await pane.find({ type: 'Link', text: `[image: shot ${shot}]` })).toBeDefined()
+    }
+    expect(sips).toEqual([
+      '/tmp/prbar/image-1.png.0.jpg',
+      '/tmp/prbar/image-1.png.1.jpg',
+      '/tmp/prbar/image-2.png.0.jpg',
+      '/tmp/prbar/image-3.png.0.jpg',
+      '/tmp/prbar/image-3.png.1.jpg',
+      '/tmp/prbar/image-3.png.2.jpg',
+    ])
+  })
+
+  test('the terminal draws a large PNG as it is, without sips', async ($, on) => {
+    const LARGE = PNG.slice(0, -4) + 'A'.repeat(140_000) + PNG.slice(-4)
+    const { clock, ran } = world(on, {
+      http: () => json(described(1)),
+      run: curl({}),
+      bytes: { '/tmp/prbar/image-0.png': LARGE },
+    })
+    await $.session.start(START)
+    await clock.settle()
+    const pane = await $.ui.mount(PANE)
+    await pane.press({ key: 'toggle-description' })
+    await clock.settle()
+    await pane.redraw()
+
+    expect((await pane.find({ type: 'Image' }))?.props).toMatchObject({ source: { png: LARGE } })
+    expect(ran.map(argv => argv[0])).toEqual(['mktemp', 'curl'])
   })
 })

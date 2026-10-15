@@ -6,7 +6,14 @@ import { locateCheckout, readRepoRef, type Checkout } from './git/locate'
 import { fetchJobLogTail, fetchPullRequest, messageOf } from './github/client'
 import { resolveToken } from './github/token'
 import type { Host, View } from './host'
-import { DESCRIPTION_IMAGES, descriptionPartsOf, pngSizeOf } from './model/description'
+import {
+  DESCRIPTION_IMAGES,
+  descriptionPartsOf,
+  pictureSvgOf,
+  pngSizeOf,
+  SHRINK_STEPS,
+  shrunkSizeOf,
+} from './model/description'
 import { armCheck, armComment, ARMED_MAX_CHARS, contextOf, withArmed } from './model/armed'
 import { HEAD_POLL_MS, isPrMovingCommand, nextPollMs, rateLimitWaitMs } from './model/cadence'
 import { hasTurnedRed, rollupOf, type Rollup } from './model/rollup'
@@ -326,6 +333,35 @@ export const register: Register = (on, options) => {
   /** A folder of this session's for fetched images, made on first use. */
   let imageFolder: Promise<string> | null = null
   let imageCount = 0
+  /** Whether the pane has drawn on a surface that shows pictures as `Svg` (the desktop). */
+  let drawsSvg = false
+
+  /**
+   * A PNG too large for an `Svg`, shrunk to a JPEG that fits by macOS's `sips`;
+   * null where none fits or `sips` cannot run (another system), so it stays a link.
+   */
+  async function shrunkSvgOf(engine: Host, path: string, size: { width: number; height: number }): Promise<string | null> {
+    for (const [step, { side, quality }] of SHRINK_STEPS.entries()) {
+      const out = `${path}.${step}.jpg`
+      const made = await engine.run(
+        ['sips', '-s', 'format', 'jpeg', '-s', 'formatOptions', String(quality), '-Z', String(side), path, '--out', out],
+        { timeoutMs: 20_000 },
+      )
+
+      if (made.exitCode !== 0) {
+        return null
+      }
+
+      const { base64 } = await engine.readBytes(out)
+      const svg = pictureSvgOf({ type: 'jpeg', base64, ...shrunkSizeOf(size, side) })
+
+      if (svg) {
+        return svg
+      }
+    }
+
+    return null
+  }
 
   /** Fetches one description image to a file and reads it back: a PNG to draw, else a link. */
   async function imageOf(engine: Host, src: string): Promise<DescriptionImage> {
@@ -357,7 +393,13 @@ export const register: Register = (on, options) => {
       const { base64 } = await engine.readBytes(path)
       const size = pngSizeOf(base64)
 
-      return size ? { kind: 'png', base64, ...size } : link
+      if (!size) {
+        return link
+      }
+
+      const svg = pictureSvgOf({ type: 'png', base64, ...size }) ?? (drawsSvg ? await shrunkSvgOf(engine, path, size) : null)
+
+      return { kind: 'png', base64, ...size, svg }
     } catch {
       return link
     }
@@ -613,6 +655,7 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Text } = $.ui.resolve(e)
     const engine = host
+    drawsSvg ||= e.surface !== 'terminal'
 
     if (!engine) {
       return <Text dimColor>Starting…</Text>

@@ -1,6 +1,15 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { descriptionPartsOf, imageBoxOf, imageSrcsOf, IMAGE_ROWS, pngSizeOf } from '../hooks/model/description'
+import {
+  descriptionPartsOf,
+  imageBoxOf,
+  imageSrcsOf,
+  IMAGE_ROWS,
+  pictureSvgOf,
+  pngSizeOf,
+  shrunkSizeOf,
+  SVG_MAX_CHARS,
+} from '../hooks/model/description'
 
 /** PNGs, base64: 800x400 (and one with a broken IHDR checksum), 0x10 and 100x4000. */
 export const PNG_800x400 = 'iVBORw0KGgoAAAANSUhEUgAAAyAAAAGQCAIAAADZR5NjAAAAC0lEQVR42mNgwAsAAB8AARNZND0AAAAASUVORK5CYII='
@@ -68,4 +77,23 @@ describe('imageBoxOf', () => {
 
 test('the fixture PNG is tall', async () => {
   expect(pngSizeOf(PNG_100x4000)).toEqual({ width: 100, height: 4000 })
+})
+
+describe('pictureSvgOf', () => {
+  test('inlines the bytes at the picture\'s size, and refuses markup past the limit', async () => {
+    expect(pictureSvgOf({ type: 'jpeg', base64: 'AAAA', width: 3, height: 2 })).toBe(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="3" height="2" viewBox="0 0 3 2">' +
+        '<image width="3" height="2" href="data:image/jpeg;base64,AAAA"/></svg>',
+    )
+    expect(pictureSvgOf({ type: 'png', base64: 'A'.repeat(SVG_MAX_CHARS), width: 1, height: 1 })).toBeNull()
+  })
+})
+
+describe('shrunkSizeOf', () => {
+  test('caps the longest side, keeping the shape, and never enlarges', async () => {
+    expect(shrunkSizeOf({ width: 2800, height: 1400 }, 1400)).toEqual({ width: 1400, height: 700 })
+    expect(shrunkSizeOf({ width: 1000, height: 3000 }, 1000)).toEqual({ width: 333, height: 1000 })
+    expect(shrunkSizeOf({ width: 800, height: 400 }, 1400)).toEqual({ width: 800, height: 400 })
+    expect(shrunkSizeOf({ width: 4000, height: 1 }, 700)).toEqual({ width: 700, height: 1 })
+  })
 })

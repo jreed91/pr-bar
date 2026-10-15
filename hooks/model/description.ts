@@ -175,15 +175,43 @@ export function imageBoxOf(
 }
 
 /**
- * A PNG as SVG markup, for a surface that draws `Svg` but not `Image` (the
- * desktop): the bytes inline as a data URI at the picture's own size, so
- * the surface scales it to its slot. Null when it would not fit an `Svg`.
+ * A picture as SVG markup, for a surface that draws `Svg` but not `Image` (the
+ * desktop): the bytes inline as a data URI at the picture's own size, so the
+ * surface scales it to its slot. Null when it would not fit an `Svg`.
  */
-export function pngSvgOf(image: { base64: string; width: number; height: number }): string | null {
-  const { base64, width, height } = image
+export function pictureSvgOf(picture: {
+  type: 'png' | 'jpeg'
+  base64: string
+  width: number
+  height: number
+}): string | null {
+  const { type, base64, width, height } = picture
   const source =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
-    `<image width="${width}" height="${height}" href="data:image/png;base64,${base64}"/></svg>`
+    `<image width="${width}" height="${height}" href="data:image/${type};base64,${base64}"/></svg>`
 
   return source.length <= SVG_MAX_CHARS ? source : null
+}
+
+/**
+ * The tries at shrinking a picture too large for an `Svg` into a JPEG that fits:
+ * the longest side at most this many pixels, at this quality.
+ */
+export const SHRINK_STEPS: readonly { side: number; quality: number }[] = [
+  { side: 1400, quality: 70 },
+  { side: 1000, quality: 60 },
+  { side: 700, quality: 50 },
+]
+
+/** A picture's size once its longest side is at most `side` pixels, never enlarged. */
+export function shrunkSizeOf(
+  size: { width: number; height: number },
+  side: number,
+): { width: number; height: number } {
+  const scale = Math.min(1, side / Math.max(size.width, size.height))
+
+  return {
+    width: Math.max(1, Math.round(size.width * scale)),
+    height: Math.max(1, Math.round(size.height * scale)),
+  }
 }
