@@ -1,5 +1,15 @@
 # pr-bar
 
+## 0.10.0
+
+### Minor Changes
+
+- [#30](https://github.com/jreed91/pr-bar/pull/30) [`5dfc453`](https://github.com/jreed91/pr-bar/commit/5dfc4536ee74df567f97432ae7c440c45086415f) Thanks [@jreed91](https://github.com/jreed91)! - On the desktop the pane draws the PR's checks as a timeline above the list: one bar per check from its start to its end, colored by state, with a tooltip naming the check, its state and how long it took. The README shows the desktop pane.
+
+### Patch Changes
+
+- [#30](https://github.com/jreed91/pr-bar/pull/30) [`4248f2e`](https://github.com/jreed91/pr-bar/commit/4248f2e7e768ed242f33f60e5e801f2eb4bc3faf) Thanks [@jreed91](https://github.com/jreed91)! - The pane draws again on the desktop under Claude Code versions that take a Button's label alone: each row is a plain label held under 300 characters for the app to truncate, instead of a label made of styled text.
+
 ## 0.9.0
 
 ### Minor Changes
