@@ -429,11 +429,12 @@ describe('description', () => {
     expect(await pane.find({ type: 'Text', text: '[image: plain]' })).toBeDefined()
   })
 
-  test('outside the terminal an image is its link', async ($, on) => {
+  test('the desktop draws a PNG as an Svg, and links one too large for it', async ($, on) => {
+    const LARGE = PNG + 'A'.repeat(140_000)
     const { clock } = world(on, {
-      http: () => json(described(1)),
-      run: curl({ [signed(0)]: PNG }),
-      bytes: { '/tmp/prbar/image-0.png': PNG },
+      http: () => json(described(3)),
+      run: curl({ [signed(0)]: PNG, [signed(1)]: LARGE, [signed(2)]: GIF }),
+      bytes: { '/tmp/prbar/image-0.png': PNG, '/tmp/prbar/image-1.png': LARGE, '/tmp/prbar/image-2.png': GIF },
     })
     await $.session.start(START)
     await clock.settle()
@@ -443,6 +444,10 @@ describe('description', () => {
     await pane.redraw()
 
     expect(await pane.find({ type: 'Image' })).toBeUndefined()
-    expect(await pane.find({ type: 'Link', text: '[image: shot 0]' })).toBeDefined()
+    const svgs = await pane.findAll({ type: 'Svg' })
+    expect(svgs).toHaveLength(1)
+    expect(svgs[0]?.props).toMatchObject({ alt: 'shot 0', source: expect.stringContaining(`data:image/png;base64,${PNG}`) })
+    expect(await pane.find({ type: 'Link', text: '[image: shot 1]' })).toBeDefined()
+    expect(await pane.find({ type: 'Link', text: '[image: shot 2]' })).toBeDefined()
   })
 })

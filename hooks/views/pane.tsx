@@ -2,7 +2,7 @@ import type { Elements } from 'claude-code'
 
 import type { Check, Comment, DescriptionImage, Problem, PullRequest, Selection, Snapshot, StackEntry } from '../../types'
 import { ageOf } from '../model/cadence'
-import { descriptionPartsOf, imageBoxOf, type DescriptionPart } from '../model/description'
+import { descriptionPartsOf, imageBoxOf, pngSvgOf, type DescriptionPart } from '../model/description'
 import { rollupOf } from '../model/rollup'
 import { HUNK_ROWS, hunkTailOf, printableTailOf } from '../model/hunk'
 import { bodyMarkdownOf, boundedMarkdownOf, commentRowOf, fit } from '../model/preview'
@@ -43,10 +43,13 @@ export type PaneModel = {
   expanded: readonly ExpandableList[]
   /** Show the PR description, not just the row that opens it. */
   showDescription: boolean
-  /** Whether the surface draws pictures: the terminal (kitty, Ghostty; elsewhere their alt text). */
-  canDrawImages: boolean
   /** The description's images fetched so far, by their source in the markdown. */
   images: Readonly<Record<string, DescriptionImage>>
+  /**
+   * Whether the pane is drawn on the terminal, which draws a picture as an `Image`
+   * (kitty, Ghostty; elsewhere its alt text). Every other surface draws it as an `Svg`.
+   */
+  isTerminal: boolean
 }
 
 export type PaneActions = {
@@ -72,8 +75,8 @@ type Table = Pick<
   Elements['terminal'],
   'Box' | 'Text' | 'Button' | 'Link' | 'Code' | 'Markdown'
 >
-/** `Image` is the terminal's alone: elsewhere an image is its link. */
-type WithImage = Table & { Image?: Elements['terminal']['Image'] }
+/** A surface's whole table: the terminal's has `Image`, every other surface's `Svg`. */
+type Surface = Elements[keyof Elements]
 
 const ICON: Record<Check['state'], { glyph: string; color: string }> = {
   fail: { glyph: '✗', color: 'error' },
@@ -156,11 +159,8 @@ export function effectiveSelection(
   return failing ? { kind: 'check', id: failing.id } : null
 }
 
-export function paneView(
-  { Box, Text, Button, Link, Code, Markdown, Image }: WithImage,
-  model: PaneModel,
-  actions: PaneActions,
-): JSX.Element {
+export function paneView(surface: Surface, model: PaneModel, actions: PaneActions): JSX.Element {
+  const { Box, Text, Button, Link, Code, Markdown } = surface
   const { snapshot, lastRead, logs, armedIds, loadingLog } = model
 
   if (!model.hasRepo) {
@@ -329,7 +329,7 @@ export function paneView(
           {model.showDescription &&
             openedRow(
               Box,
-              descriptionView({ Box, Text, Link, Markdown, Image: model.canDrawImages ? Image : undefined }, description, model.images, rowWidth),
+              descriptionView(surface, model.isTerminal, description, model.images, rowWidth),
             )}
         </Box>
       )}
@@ -695,30 +695,45 @@ function hunkCode(Code: Table['Code'], diffHunk: string): JSX.Element {
 
 /** The description in order: its text as markdown, each image drawn where it was fetched, else a link to it. */
 function descriptionView(
-  { Box, Text, Link, Markdown, Image }: Pick<WithImage, 'Box' | 'Text' | 'Link' | 'Markdown' | 'Image'>,
+  surface: Surface,
+  isTerminal: boolean,
   parts: readonly DescriptionPart[],
   images: Readonly<Record<string, DescriptionImage>>,
   width: number,
 ): JSX.Element {
+  const { Box, Text, Link, Markdown } = surface
+
   return (
     <Box flexDirection="column">
       {parts.map((part, index) => {
+        const key = `description:${index}`
+
         if (part.kind === 'text') {
-          return <Markdown key={`description:${index}`} text={boundedMarkdownOf(part.markdown)} />
+          return <Markdown key={key} text={boundedMarkdownOf(part.markdown)} />
         }
 
         const image = images[part.src]
         const alt = part.alt.trim() || 'image'
 
-        return Image && image?.kind === 'png' ? (
-          <Image
-            key={`description:${index}`}
-            source={{ png: image.base64 }}
-            {...imageBoxOf(image, width)}
-            alt={alt}
-          />
-        ) : (
-          <Box key={`description:${index}`}>
+        if (image?.kind === 'png') {
+          if (isTerminal) {
+            const { Image } = surface as Elements['terminal']
+
+            return <Image key={key} source={{ png: image.base64 }} {...imageBoxOf(image, width)} alt={alt} />
+          }
+
+          // The desktop has no Image: the PNG inside an Svg, when it fits one.
+          const source = pngSvgOf(image)
+
+          if (source) {
+            const { Svg } = surface as Elements['desktop']
+
+            return <Svg key={key} source={source} alt={alt} />
+          }
+        }
+
+        return (
+          <Box key={key}>
             {/^https:\/\//.test(part.src) ? (
               <Link href={part.src} label={`[image: ${alt}]`} />
             ) : (
