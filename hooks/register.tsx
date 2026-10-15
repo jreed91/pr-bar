@@ -637,8 +637,8 @@ export const register: Register = (on, options) => {
         showResolved: view.showResolved,
         expanded: view.expanded,
         showDescription: view.showDescription,
-        canDrawImages: e.surface === 'terminal',
         images: view.images,
+        isTerminal: e.surface === 'terminal',
       },
       {
         select: selection => setView(engine, { selection }),

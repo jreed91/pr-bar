@@ -6,6 +6,8 @@ export const DESCRIPTION_IMAGES = 6
 export const IMAGE_ROWS = 24
 /** Roughly how many pixels wide one terminal cell is. */
 const CELL_PIXELS = 8
+/** The longest markup an `Svg` takes. */
+export const SVG_MAX_CHARS = 131_072
 
 /** One piece of a PR description, in order: markdown, or an image in its place. */
 export type DescriptionPart =
@@ -170,4 +172,18 @@ export function imageBoxOf(
   }
 
   return { columns, rows }
+}
+
+/**
+ * A PNG as SVG markup, for a surface that draws `Svg` but not `Image` (the
+ * desktop): the bytes inline as a data URI at the picture's own size, so
+ * the surface scales it to its slot. Null when it would not fit an `Svg`.
+ */
+export function pngSvgOf(image: { base64: string; width: number; height: number }): string | null {
+  const { base64, width, height } = image
+  const source =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<image width="${width}" height="${height}" href="data:image/png;base64,${base64}"/></svg>`
+
+  return source.length <= SVG_MAX_CHARS ? source : null
 }

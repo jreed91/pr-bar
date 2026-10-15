@@ -1,6 +1,6 @@
 # PrBar
 
-A Claude Code mod that puts the current branch's GitHub PR above the prompt, so a red CI or a new review comment shows without leaving the terminal.
+A Claude Code mod that puts the current branch's GitHub PR above the prompt, so a red CI or a new review comment shows without leaving the terminal or the Claude desktop app.
 
 ![The compact bar above the prompt: PR #42, one failing check, changes requested, two new review comments and two attachments](docs/screenshots/bar.png)
 
@@ -13,7 +13,7 @@ _The screenshots are the trees the mod draws for a sample PR, captured through `
 It starts quiet and you opt into more:
 
 - **Bar** (above the prompt): one line with the PR number (a link), its title, the count of new review comments, the CI state (`✗ 1 failing`, `◌ 2 running` or `✓ CI`), the review decision, a merge conflict and the count of attachments. When the PR is part of a stack it shows its place, `stack 2/3`, counted from the bottom. Focus it with ctrl+x tab and press `d` for details.
-- **Pane** (`/pr` or `d`): for a stacked PR, a `Stack` list first, top to bottom with each PR's CI and the branch the stack sits on. Press another PR to check out its branch here (refused while tracked files have changes); `↗` beside it opens it on GitHub. Then a folded `Description` row: press it for the PR description as markdown, its images drawn in place (PNGs, in a terminal that shows pictures such as kitty or Ghostty; other images, and other terminals, get a link with the alt text). Then comments: the inline review comments, unread first, one line each, with the conversation (review summaries, bot reports such as coverage) folded into one line. Then failing and running checks, with the passing ones folded into one line. It opens on the first unread comment, else the first failing check. Press either folded line to expand it for the session. Long lists stop at ten rows (the conversation at four) with an `N more` row that shows the rest in place, and `show fewer` that caps it again. Pressing the open row closes it. Pick a row and it opens in place, under itself: a check's log tail (`l` to load), or a comment's text with the code it points at, the last lines of the diff down to the commented line, numbered as on GitHub. Comment bodies are drawn as markdown, with GitHub's HTML (badges, headings, collapsed sections) turned into text. `m` marks the PR's comments read, `r` refreshes.
+- **Pane** (`/pr` or `d`): for a stacked PR, a `Stack` list first, top to bottom with each PR's CI and the branch the stack sits on. Press another PR to check out its branch here (refused while tracked files have changes); `↗` beside it opens it on GitHub. Then a folded `Description` row: press it for the PR description as markdown, its images drawn in place (PNGs: in a terminal that shows pictures such as kitty or Ghostty, and in the desktop app up to about 95 KB each; other images, larger ones on the desktop, and other terminals get a link with the alt text). Then comments: the inline review comments, unread first, one line each, with the conversation (review summaries, bot reports such as coverage) folded into one line. Then failing and running checks, with the passing ones folded into one line. It opens on the first unread comment, else the first failing check. Press either folded line to expand it for the session. Long lists stop at ten rows (the conversation at four) with an `N more` row that shows the rest in place, and `show fewer` that caps it again. Pressing the open row closes it. Pick a row and it opens in place, under itself: a check's log tail (`l` to load), or a comment's text with the code it points at, the last lines of the diff down to the commented line, numbered as on GitHub. Comment bodies are drawn as markdown, with GitHub's HTML (badges, headings, collapsed sections) turned into text. `m` marks the PR's comments read, `r` refreshes.
 - **Hand-off**: **Attach to prompt** on a failing check (`f`, with its log tail) or a comment (`a`), or `u` (beside Review comments) to attach every unread comment at once, oldest first, so you can type "address all of these"; any that would take the prompt past its 40,000-character allowance are left out and counted. The bar shows `📎 N for next prompt` until you send one; that prompt carries the items as context, once, so you can type just "fix this", and a dim line under it in the transcript names what went with it. Prompts that arrive on their own (a background task's, another session's) leave them for yours. Nothing is typed or sent for you.
 - **Alerts**: a toast when CI turns red (never on the first poll).
 
@@ -81,6 +81,12 @@ Or from your shell: `claude plugin marketplace add jreed91/pr-bar` then `claude 
 If `GH_TOKEN`, `GITHUB_TOKEN` or `gh auth login` already give you a token, there is nothing to configure. Otherwise set the secret token with `/plugin configure pr-bar@jreed91` (the install may mention that option is unset; it is optional).
 
 Coming from `pr-band@jreed91`? The plugin is now `pr-bar`, a different plugin id, so remove the old one (`/plugin uninstall pr-band@jreed91`) and install this one. Its settings and which comments you marked read start fresh.
+
+### Desktop app
+
+The bar and the pane draw in the desktop app's Code tab too, with the same buttons. `/plugin` does not run there, so install from the prompt box: click **+**, then **Plugins**, **Add marketplace** with `jreed91/pr-bar`, then **Add plugin** on PrBar. Installed from a terminal at the user scope, it loads in the desktop app's sessions as well.
+
+The token comes from the same places. An app started from the Dock or Start menu may not see a `GH_TOKEN` exported in your shell profile; `gh auth login` works either way. To set the `githubToken` setting instead, run `/plugin configure pr-bar@jreed91` in a terminal session: the setting is shared with the desktop app's sessions.
 
 To try a local checkout without installing: `claude --plugin-dir /path/to/pr-bar`.
 
