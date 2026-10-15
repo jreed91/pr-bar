@@ -1,5 +1,11 @@
 # pr-bar
 
+## 0.9.0
+
+### Minor Changes
+
+- [#28](https://github.com/jreed91/pr-bar/pull/28) [`da79291`](https://github.com/jreed91/pr-bar/commit/da79291c56e75e4ef20d2a210eb6de7702efa20b) Thanks [@jreed91](https://github.com/jreed91)! - The desktop app gets its own layout: titles and list rows are left whole for the app to truncate rather than cut to a column count, Details is the full bar's primary button, and an open row's card is indented instead of boxed. A description image too large to show on the desktop is shrunk to a JPEG with macOS's `sips` first, and stays a link where `sips` is not available. The bar and pane tests now run on the terminal and the desktop.
+
 ## 0.8.0
 
 ### Minor Changes
