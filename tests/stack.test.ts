@@ -6,7 +6,7 @@ import { parseResponse, stackEntryOf } from '../hooks/github/query'
 import { positionOf, stackOf } from '../hooks/model/stack'
 import type { StackEntry } from '../types'
 import { hostOf } from './host'
-import { BAR, checkRun, json, PANE, prAnswer, START, world, type WorldOptions } from './world'
+import { checkRun, json, onEverySurface, prAnswer, START, world, type WorldOptions } from './world'
 
 const entryOf = (number: number, baseRef: string, headRef: string, overrides: Partial<StackEntry> = {}): StackEntry => ({
   number,
@@ -122,49 +122,52 @@ describe('parseResponse', () => {
   })
 })
 
-describe('stack in the bar and pane', () => {
-  test('the compact bar shows the position', async ($, on) => {
-    const ui = await drawn($, on, stacked(), BAR)
+onEverySurface(({ BAR, PANE }) => {
+  describe('stack in the bar and pane', () => {
+    test('the compact bar shows the position', async ($, on) => {
+      const ui = await drawn($, on, stacked(), BAR)
 
-    expect(await ui.find({ type: 'Text', text: 'stack 2/3' })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: 'stack 2/3' })).toBeDefined()
+    })
+
+    test('the full bar shows the position', { options: { barLayout: 'full' } }, async ($, on) => {
+      const ui = await drawn($, on, stacked(), BAR)
+
+      expect(await ui.find({ type: 'Text', text: ' · stack 2/3' })).toBeDefined()
+    })
+
+    test('no stack, no position', async ($, on) => {
+      const ui = await drawn($, on, prAnswer(), BAR)
+
+      expect(await ui.find({ type: 'Text', text: /stack/ })).toBeUndefined()
+    })
+
+    test('the pane lists the stack top first, the others to check out or open', async ($, on) => {
+      const pane = await drawn($, on, stacked(), PANE)
+
+      expect(await pane.find({ type: 'Text', text: 'Stack (2/3)' })).toBeDefined()
+      expect((await pane.find({ type: 'Button', key: 'checkout:9' }))?.props).toMatchObject({ label: '#9 Step 9 · draft' })
+      expect(await pane.find({ type: 'Text', text: '#7 Add the bar' })).toBeDefined()
+      expect((await pane.find({ type: 'Button', key: 'checkout:5' }))?.props).toMatchObject({ label: '#5 Step 5' })
+      expect((await pane.findAll({ type: 'Link', text: '↗' })).map(link => link.props['href'])).toEqual([
+        'https://github.com/o/r/pull/9',
+        'https://github.com/o/r/pull/5',
+      ])
+      expect(await pane.find({ type: 'Text', text: '    main' })).toBeDefined()
+      expect(await pane.find({ type: 'Text', text: '  ✗' })).toBeDefined()
+      expect(await pane.find({ type: 'Text', text: '❯ ✓' })).toBeDefined()
+    })
+
+    test('a PR with no stack has no Stack section', async ($, on) => {
+      const pane = await drawn($, on, prAnswer(), PANE)
+
+      expect(await pane.find({ type: 'Text', text: /^Stack/ })).toBeUndefined()
+    })
   })
 
-  test('the full bar shows the position', { options: { barLayout: 'full' } }, async ($, on) => {
-    const ui = await drawn($, on, stacked(), BAR)
-
-    expect(await ui.find({ type: 'Text', text: ' · stack 2/3' })).toBeDefined()
-  })
-
-  test('no stack, no position', async ($, on) => {
-    const ui = await drawn($, on, prAnswer(), BAR)
-
-    expect(await ui.find({ type: 'Text', text: /stack/ })).toBeUndefined()
-  })
-
-  test('the pane lists the stack top first, the others to check out or open', async ($, on) => {
-    const pane = await drawn($, on, stacked(), PANE)
-
-    expect(await pane.find({ type: 'Text', text: 'Stack (2/3)' })).toBeDefined()
-    expect((await pane.find({ type: 'Button', key: 'checkout:9' }))?.props).toMatchObject({ label: '#9 Step 9 · draft' })
-    expect(await pane.find({ type: 'Text', text: '#7 Add the bar' })).toBeDefined()
-    expect((await pane.find({ type: 'Button', key: 'checkout:5' }))?.props).toMatchObject({ label: '#5 Step 5' })
-    expect((await pane.findAll({ type: 'Link', text: '↗' })).map(link => link.props['href'])).toEqual([
-      'https://github.com/o/r/pull/9',
-      'https://github.com/o/r/pull/5',
-    ])
-    expect(await pane.find({ type: 'Text', text: '    main' })).toBeDefined()
-    expect(await pane.find({ type: 'Text', text: '  ✗' })).toBeDefined()
-    expect(await pane.find({ type: 'Text', text: '❯ ✓' })).toBeDefined()
-  })
-
-  test('a PR with no stack has no Stack section', async ($, on) => {
-    const pane = await drawn($, on, prAnswer(), PANE)
-
-    expect(await pane.find({ type: 'Text', text: /^Stack/ })).toBeUndefined()
-  })
+  /** A run answering each git step by its subcommand; any step left out succeeds. */
 })
 
-/** A run answering each git step by its subcommand; any step left out succeeds. */
 const git =
   (answers: Record<string, { exitCode: number; stdout?: string; stderr?: string }> = {}) =>
   async (argv: readonly string[]) => ({ stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false, exitCode: 0, ...answers[argv[1] ?? ''] })
@@ -228,78 +231,81 @@ describe('checkoutBranch', () => {
   })
 })
 
-describe('checking out from the pane', () => {
-  async function paneWith($: Engine, on: On, run: WorldOptions['run']) {
-    const w = world(on, { http: () => json(stacked()), run })
-    await $.session.start(START)
-    await w.clock.settle()
-    return { ...w, pane: await $.ui.mount(PANE) }
-  }
-
-  test('pressing a stacked PR checks out its branch and asks GitHub again', async ($, on) => {
-    let head = (_branch: string) => {}
-    const w = await paneWith($, on, async argv => {
-      if (argv[1] === 'checkout') head(argv[3] ?? '')
-      return { exitCode: 0 }
-    })
-    head = branch => {
-      w.state.head = `ref: refs/heads/${branch}\n`
+onEverySurface(({ START, PANE }) => {
+  describe('checking out from the pane', () => {
+    async function paneWith($: Engine, on: On, run: WorldOptions['run']) {
+      const w = world(on, { http: () => json(stacked()), run })
+      await $.session.start(START)
+      await w.clock.settle()
+      return { ...w, pane: await $.ui.mount(PANE) }
     }
-    const asked = w.requests.length
 
-    await w.pane.press({ key: 'checkout:9' })
-    await w.clock.settle()
+    test('pressing a stacked PR checks out its branch and asks GitHub again', async ($, on) => {
+      let head = (_branch: string) => {}
+      const w = await paneWith($, on, async argv => {
+        if (argv[1] === 'checkout') head(argv[3] ?? '')
+        return { exitCode: 0 }
+      })
+      head = branch => {
+        w.state.head = `ref: refs/heads/${branch}\n`
+      }
+      const asked = w.requests.length
 
-    expect(w.ran.map(argv => argv[1])).toEqual(['status', 'fetch', 'checkout', 'merge'])
-    expect(w.toasts).toContain('Checked out feat/ui')
-    expect(w.state.head).toBe('ref: refs/heads/feat/ui\n')
-    expect(w.requests.length).toBeGreaterThan(asked)
-  })
+      await w.pane.press({ key: 'checkout:9' })
+      await w.clock.settle()
 
-  test('a diverged local branch is said so', async ($, on) => {
-    const w = await paneWith($, on, async argv => ({ exitCode: argv[1] === 'merge' ? 128 : 0 }))
-
-    await w.pane.press({ key: 'checkout:5' })
-    await w.clock.settle()
-
-    expect(w.toasts).toContain('Checked out feat/api; it has commits origin lacks, so it was not updated')
-  })
-
-  test('changed files refuse, and a failing step says why', async ($, on) => {
-    let status = { exitCode: 0, stdout: ' M a.ts' }
-    const w = await paneWith($, on, async argv => (argv[1] === 'status' ? status : { exitCode: 1, stdout: 'fatal: no such branch' }))
-
-    await w.pane.press({ key: 'checkout:9' })
-    await w.clock.settle()
-    expect(w.toasts).toContain('Commit or stash your changes before checking out feat/ui')
-
-    status = { exitCode: 0, stdout: '' }
-    await w.pane.press({ key: 'checkout:9' })
-    await w.clock.settle()
-    expect(w.toasts).toContain('Could not check out feat/ui: fatal: no such branch')
-  })
-
-  test('the row says it is checking out, and a second press waits for the first', async ($, on) => {
-    let release = () => {}
-    const fetched = new Promise<void>(resolve => {
-      release = resolve
-    })
-    const w = await paneWith($, on, async argv => {
-      if (argv[1] === 'fetch') await fetched
-      return { exitCode: 0 }
+      expect(w.ran.map(argv => argv[1])).toEqual(['status', 'fetch', 'checkout', 'merge'])
+      expect(w.toasts).toContain('Checked out feat/ui')
+      expect(w.state.head).toBe('ref: refs/heads/feat/ui\n')
+      expect(w.requests.length).toBeGreaterThan(asked)
     })
 
-    await w.pane.press({ key: 'checkout:9' })
-    await w.pane.redraw()
+    test('a diverged local branch is said so', async ($, on) => {
+      const w = await paneWith($, on, async argv => ({ exitCode: argv[1] === 'merge' ? 128 : 0 }))
 
-    expect((await w.pane.find({ type: 'Button', key: 'checkout:9' }))?.props).toMatchObject({ label: 'checking out feat/ui…' })
+      await w.pane.press({ key: 'checkout:5' })
+      await w.clock.settle()
 
-    await w.pane.press({ key: 'checkout:5' })
-    release()
-    await w.clock.settle()
-    await w.pane.redraw()
+      expect(w.toasts).toContain('Checked out feat/api; it has commits origin lacks, so it was not updated')
+    })
 
-    expect(w.ran.filter(argv => argv[1] === 'status')).toHaveLength(1)
-    expect((await w.pane.find({ type: 'Button', key: 'checkout:9' }))?.props).toMatchObject({ label: '#9 Step 9 · draft' })
+    test('changed files refuse, and a failing step says why', async ($, on) => {
+      let status = { exitCode: 0, stdout: ' M a.ts' }
+      const w = await paneWith($, on, async argv => (argv[1] === 'status' ? status : { exitCode: 1, stdout: 'fatal: no such branch' }))
+
+      await w.pane.press({ key: 'checkout:9' })
+      await w.clock.settle()
+      expect(w.toasts).toContain('Commit or stash your changes before checking out feat/ui')
+
+      status = { exitCode: 0, stdout: '' }
+      await w.pane.press({ key: 'checkout:9' })
+      await w.clock.settle()
+      expect(w.toasts).toContain('Could not check out feat/ui: fatal: no such branch')
+    })
+
+    test('the row says it is checking out, and a second press waits for the first', async ($, on) => {
+      let release = () => {}
+      const fetched = new Promise<void>(resolve => {
+        release = resolve
+      })
+      const w = await paneWith($, on, async argv => {
+        if (argv[1] === 'fetch') await fetched
+        return { exitCode: 0 }
+      })
+
+      await w.pane.press({ key: 'checkout:9' })
+      await w.pane.redraw()
+
+      expect((await w.pane.find({ type: 'Button', key: 'checkout:9' }))?.props).toMatchObject({ label: 'checking out feat/ui…' })
+
+      await w.pane.press({ key: 'checkout:5' })
+      release()
+      await w.clock.settle()
+      await w.pane.redraw()
+
+      expect(w.ran.filter(argv => argv[1] === 'status')).toHaveLength(1)
+      expect((await w.pane.find({ type: 'Button', key: 'checkout:9' }))?.props).toMatchObject({ label: '#9 Step 9 · draft' })
+    })
   })
 })
+
