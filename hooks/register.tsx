@@ -638,6 +638,7 @@ export const register: Register = (on, options) => {
         now: await $.clock.now(),
         layout,
         showConversation: view.showConversation,
+        isTerminal: e.surface === 'terminal',
       },
       {
         details: () => void togglePane(engine),

@@ -254,8 +254,14 @@ onEverySurface(({ surface }) => {
       const rows = (await pane.findAll({ type: 'Button' })).filter(row => row.key?.startsWith('select:comment:'))
       expect(rows).toHaveLength(5)
       for (const row of rows) {
-        expect([...row.text].length).toBeLessThanOrEqual(55)
+        // The terminal cuts a row to the pane's columns; the desktop truncates it itself.
+        if (surface === 'terminal') {
+          expect([...row.text].length).toBeLessThanOrEqual(55)
+        }
         expect(row.text).not.toMatch(/[<>]/)
+      }
+      if (surface === 'desktop') {
+        expect(rows.map(row => row.text)).toContainEqual(expect.stringContaining('retry limit is five attempts and nothing more.'))
       }
       expect(rows.map(row => row.text)).toContainEqual(expect.stringMatching(/^copilot  NOTES-3\.md:243  This documented/))
       expect(rows.map(row => row.text)).toContainEqual(expect.stringMatching(/^actions  comment  Coverage Report for apps\/webhooks$/))

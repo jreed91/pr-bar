@@ -24,6 +24,11 @@ export type BarModel = {
   now: number
   layout: BarLayout
   showConversation: boolean
+  /**
+   * Whether the band is drawn on the terminal, which cuts the compact title to a
+   * column count; the desktop's text is not monospace, so it truncates there itself.
+   */
+  isTerminal: boolean
 }
 
 export type BarActions = {
@@ -121,7 +126,7 @@ export function barView(
       <Box columnGap={1}>
         <Link href={pr.url} label={`#${pr.number}`} />
         <Text dimColor wrap="truncate-end">
-          {fit(pr.title, COMPACT_TITLE_COLUMNS)}
+          {model.isTerminal ? fit(pr.title, COMPACT_TITLE_COLUMNS) : pr.title}
         </Text>
         {position && <Text dimColor>stack {position}</Text>}
         {unread > 0 && <Text color="warning">💬 {unread}</Text>}
@@ -183,7 +188,13 @@ export function barView(
             onPress={() => actions.disarm(item.id)}
           />
         ))}
-        <Button key="details" hotkey="d" label="Details" onPress={actions.details} />
+        <Button
+          key="details"
+          hotkey="d"
+          label="Details"
+          variant={model.isTerminal ? undefined : 'primary'}
+          onPress={actions.details}
+        />
         <Button key="mark-read" hotkey="m" label="Mark read" onPress={actions.markRead} />
         <Button key="refresh" hotkey="r" label="Refresh" onPress={actions.refresh} />
       </Box>

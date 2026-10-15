@@ -2,7 +2,7 @@ import type { On } from 'claude-code'
 import { describe, expect, test, type Engine } from 'claude-code/testing'
 
 import { GIF, PNG_800x400 as PNG } from './description.test'
-import { checkRun, inlineComment, json, NO_PR, onEverySurface, PANE, prAnswer, START, world } from './world'
+import { BAR, checkRun, inlineComment, json, NO_PR, onEverySurface, PANE, prAnswer, START, world } from './world'
 
 const passing = (n: number) => checkRun({ id: `P${n}`, databaseId: 200 + n, name: `pass-${n}`, conclusion: 'SUCCESS' })
 const failing = (n: number) => checkRun({ id: `F${n}`, databaseId: 300 + n, name: `fail-${String(n).padStart(2, '0')}` })
@@ -499,5 +499,38 @@ describe('description', () => {
 
     expect((await pane.find({ type: 'Image' }))?.props).toMatchObject({ source: { png: LARGE } })
     expect(ran.map(argv => argv[0])).toEqual(['mktemp', 'curl'])
+  })
+})
+
+describe('the desktop layout', () => {
+  const longTitle = 'Retry webhook deliveries with backoff, and stop after the fifth failed attempt'
+  const desktop = (target: never) => ({ ...(target as object), surface: 'desktop' }) as never
+
+  test('keeps the compact title whole for the surface to truncate', async ($, on) => {
+    const terminal = await drawn($, on, prAnswer({ title: longTitle }), BAR)
+    expect((await terminal.find({ type: 'Text', text: /^Retry webhook/ }))?.text).toMatch(/…$/)
+
+    const ui = await $.ui.mount(desktop(BAR))
+    expect((await ui.find({ type: 'Text', text: /^Retry webhook/ }))?.text).toBe(longTitle)
+  })
+
+  test('makes Details the primary button of the full bar', { options: { barLayout: 'full' } }, async ($, on) => {
+    const terminal = await drawn($, on, prAnswer(), BAR)
+    expect((await terminal.find({ type: 'Button', key: 'details' }))?.props).not.toHaveProperty('variant', 'primary')
+
+    const ui = await $.ui.mount(desktop(BAR))
+    expect((await ui.find({ type: 'Button', key: 'details' }))?.props).toMatchObject({ variant: 'primary' })
+  })
+
+  test('indents an open row instead of framing it', async ($, on) => {
+    const terminal = await drawn($, on, prAnswer({}, [checkRun({ name: longTitle })]), PANE)
+    const framed = async (ui: typeof terminal) =>
+      (await ui.findAll({ type: 'Box' })).filter(box => (box.props as { borderStyle?: string }).borderStyle !== undefined)
+    expect(await framed(terminal)).toHaveLength(1)
+    expect((await terminal.find({ type: 'Button', key: 'select:check:CR1' }))?.text).toMatch(/…$/)
+
+    const pane = await $.ui.mount(desktop(PANE))
+    expect(await framed(pane)).toHaveLength(0)
+    expect((await pane.find({ type: 'Button', key: 'select:check:CR1' }))?.text).toBe(`CI / ${longTitle}`)
   })
 })
